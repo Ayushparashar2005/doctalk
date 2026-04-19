@@ -1,10 +1,14 @@
 package com.doctalk.app.data.model
 
+import androidx.room.Entity
+import androidx.room.PrimaryKey
+
 /**
  * Data class representing a chat session for a document
  */
+@Entity(tableName = "chat_sessions")
 data class ChatSession(
-    val id: String = "",
+    @PrimaryKey val id: String = "",
     val documentId: String = "",
     val userId: String = "",
     val title: String = "",

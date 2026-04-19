@@ -3,6 +3,7 @@ package com.doctalk.app.presentation.components
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -29,11 +30,7 @@ fun DocTalkOutlinedButton(
             contentColor = MaterialTheme.colorScheme.primary,
             disabledContentColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
         ),
-        border = ButtonDefaults.outlinedButtonBorder.copy(
-            brush = null,
-            width = 1.dp,
-            color = MaterialTheme.colorScheme.primary
-        ),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary),
         contentPadding = PaddingValues(vertical = 16.dp, horizontal = 24.dp),
         elevation = ButtonDefaults.buttonElevation(
             defaultElevation = 0.dp,

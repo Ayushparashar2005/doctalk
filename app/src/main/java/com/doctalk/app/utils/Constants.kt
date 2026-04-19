@@ -9,6 +9,11 @@ object Constants {
     const val BASE_URL = "https://your-backend-api.com/api/" // Replace with actual backend URL
     const val API_TIMEOUT = 30_000L // 30 seconds
     
+    // Groq API Configuration
+    const val GROQ_API_KEY = ""
+    const val GROQ_BASE_URL = "https://api.groq.com/openai/v1"
+    const val DEFAULT_GROQ_MODEL = "llama3-8b-8192"
+    
     // Firebase Collections
     const val USERS_COLLECTION = "users"
     const val DOCUMENTS_COLLECTION = "documents"

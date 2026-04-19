@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -24,6 +25,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.doctalk.app.data.model.Message
 import com.doctalk.app.data.model.MessageType
+import com.doctalk.app.data.model.getFormattedTime
+import com.doctalk.app.data.model.isFromAI
+import com.doctalk.app.data.model.isFromUser
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale

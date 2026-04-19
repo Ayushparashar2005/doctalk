@@ -3,6 +3,7 @@ package com.doctalk.app.presentation.screens.home.components
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -17,6 +18,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.CloudUpload
+import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.runtime.Composable
@@ -63,7 +65,7 @@ fun StatsCard(
             ) {
                 // Total Documents
                 StatItem(
-                    icon = Icons.Default.DocumentScanner,
+                    icon = Icons.Default.Description,
                     label = "Total",
                     value = totalDocuments.toString(),
                     color = MaterialTheme.colorScheme.primary
@@ -114,10 +116,10 @@ private fun StatItem(
             imageVector = icon,
             contentDescription = null,
             tint = color,
-            modifier = androidx.compose.ui.Modifier.size(24.dp)
+            modifier = Modifier.size(24.dp)
         )
         
-        Spacer(modifier = androidx.compose.ui.Modifier.height(4.dp))
+        Spacer(modifier = Modifier.height(4.dp))
         
         Text(
             text = value,

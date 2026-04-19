@@ -4,6 +4,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -21,6 +22,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
@@ -93,14 +95,7 @@ fun LoginScreen(
             // Top App Bar
             TopAppBar(
                 title = stringResource(id = R.string.sign_in),
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(
-                            imageVector = Icons.Default.ArrowBack,
-                            contentDescription = "Back"
-                        )
-                    }
-                }
+                onBackClick = onNavigateBack
             )
             
             // Content
@@ -115,7 +110,7 @@ fun LoginScreen(
                 
                 // App Logo
                 Image(
-                    painter = painterResource(id = R.drawable.ic_launcher_foreground),
+                    painter = painterResource(id = R.mipmap.ic_launcher),
                     contentDescription = "DocTalk Logo",
                     modifier = Modifier.size(80.dp)
                 )
@@ -250,7 +245,7 @@ fun LoginScreen(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    androidx.compose.foundation.layout.HorizontalDivider(
+                    HorizontalDivider(
                         modifier = Modifier.weight(1f),
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
                     )
@@ -260,7 +255,7 @@ fun LoginScreen(
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                     )
-                    androidx.compose.foundation.layout.HorizontalDivider(
+                    HorizontalDivider(
                         modifier = Modifier.weight(1f),
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
                     )

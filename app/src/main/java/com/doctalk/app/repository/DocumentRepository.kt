@@ -1,34 +1,21 @@
 package com.doctalk.app.repository
 
+import com.doctalk.app.data.local.DocumentDao
 import com.doctalk.app.data.model.Document
 import com.doctalk.app.data.model.DocumentStatus
-import com.doctalk.app.data.model.DocumentProcessRequest
-import com.doctalk.app.data.model.DocumentProcessResponse
-import com.doctalk.app.network.ApiService
 import com.doctalk.app.network.NetworkResult
-import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.firestore.Query
-import com.google.firebase.storage.FirebaseStorage
-import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.callbackFlow
-import kotlinx.coroutines.flow.flow
-import kotlinx.coroutines.tasks.await
 import java.io.File
-import java.io.FileInputStream
+import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * Repository for handling document operations
+ * Repository for handling local document operations
  */
 @Singleton
 class DocumentRepository @Inject constructor(
-    private val firestore: FirebaseFirestore,
-    private val storage: FirebaseStorage,
-    private val apiService: ApiService,
-    private val firebaseAuth: FirebaseAuth
+    private val documentDao: DocumentDao
 ) {
 
     /**
@@ -36,65 +23,19 @@ class DocumentRepository @Inject constructor(
      */
     suspend fun getUserDocuments(): NetworkResult<List<Document>> {
         return try {
-            val userId = firebaseAuth.currentUser?.uid
-                ?: return NetworkResult.error("User not authenticated")
-            
-            val documents = firestore.collection("documents")
-                .whereEqualTo("userId", userId)
-                .orderBy("uploadedAt", Query.Direction.DESCENDING)
-                .get()
-                .await()
-                .documents
-                .mapNotNull { document ->
-                    try {
-                        Document.fromMap(document.data ?: emptyMap())
-                    } catch (e: Exception) {
-                        null
-                    }
-                }
-            
-            NetworkResult.success(documents)
+            NetworkResult.success(documentDao.getAllDocumentsList())
         } catch (e: Exception) {
             NetworkResult.error(e.message ?: "Failed to get documents", e)
         }
     }
 
     /**
-     * Listens to document changes for the current user
+     * Listens to document changes
      */
-    fun getUserDocumentsFlow(): Flow<List<Document>> = callbackFlow {
-        val userId = firebaseAuth.currentUser?.uid
-        
-        if (userId == null) {
-            close(Exception("User not authenticated"))
-            return@callbackFlow
-        }
-        
-        val listener = firestore.collection("documents")
-            .whereEqualTo("userId", userId)
-            .orderBy("uploadedAt", Query.Direction.DESCENDING)
-            .addSnapshotListener { snapshot, error ->
-                if (error != null) {
-                    close(error)
-                    return@addSnapshotListener
-                }
-                
-                val documents = snapshot?.documents?.mapNotNull { document ->
-                    try {
-                        Document.fromMap(document.data ?: emptyMap())
-                    } catch (e: Exception) {
-                        null
-                    }
-                } ?: emptyList()
-                
-                trySend(documents)
-            }
-        
-        awaitClose { listener.remove() }
-    }
+    fun getUserDocumentsFlow(): Flow<List<Document>> = documentDao.getAllDocuments()
 
     /**
-     * Uploads a document to Firebase Storage and creates Firestore document
+     * Uploads (saves locally) a document
      */
     suspend fun uploadDocument(
         file: File,
@@ -102,90 +43,24 @@ class DocumentRepository @Inject constructor(
         fileType: String
     ): NetworkResult<Document> {
         return try {
-            val userId = firebaseAuth.currentUser?.uid
-                ?: return NetworkResult.error("User not authenticated")
+            val documentId = UUID.randomUUID().toString()
             
-            // Create document reference in Firestore first
-            val documentId = firestore.collection("documents").document().id
-            val storagePath = "documents/$userId/$documentId"
-            
+            // In local mode, we just record the file info
             val document = Document(
                 id = documentId,
-                userId = userId,
+                userId = "local_user",
                 fileName = fileName,
                 fileType = fileType,
                 fileSize = file.length(),
-                storagePath = storagePath,
-                status = DocumentStatus.UPLOADING
+                downloadUrl = file.absolutePath, // Local path
+                storagePath = file.absolutePath,
+                status = DocumentStatus.PROCESSED // Mark as processed immediately in local mode
             )
             
-            // Save document to Firestore
-            firestore.collection("documents")
-                .document(documentId)
-                .set(document.toMap())
-                .await()
-            
-            // Upload file to Firebase Storage
-            val storageRef = storage.reference.child(storagePath)
-            val fileInputStream = FileInputStream(file)
-            val uploadTask = storageRef.putStream(fileInputStream)
-            
-            uploadTask.await()
-            
-            // Get download URL
-            val downloadUrl = storageRef.downloadUrl.await().toString()
-            
-            // Update document with download URL
-            val updatedDocument = document.copy(
-                downloadUrl = downloadUrl,
-                status = DocumentStatus.PROCESSING
-            )
-            
-            firestore.collection("documents")
-                .document(documentId)
-                .update(updatedDocument.toMap())
-                .await()
-            
-            // Trigger backend processing
-            triggerDocumentProcessing(updatedDocument)
-            
-            NetworkResult.success(updatedDocument)
+            documentDao.insertDocument(document)
+            NetworkResult.success(document)
         } catch (e: Exception) {
             NetworkResult.error(e.message ?: "Upload failed", e)
-        }
-    }
-
-    /**
-     * Triggers document processing in the backend
-     */
-    private suspend fun triggerDocumentProcessing(document: Document): NetworkResult<DocumentProcessResponse> {
-        return try {
-            val request = DocumentProcessRequest(
-                documentId = document.id,
-                userId = document.userId,
-                fileName = document.fileName,
-                fileType = document.fileType,
-                downloadUrl = document.downloadUrl
-            )
-            
-            val response = apiService.processDocument(request)
-            if (response.isSuccessful) {
-                val apiResponse = response.body()
-                if (apiResponse?.success == true) {
-                    NetworkResult.success(apiResponse.data ?: DocumentProcessResponse(
-                        success = false,
-                        documentId = document.id,
-                        status = "failed",
-                        message = "No data received"
-                    ))
-                } else {
-                    NetworkResult.error(apiResponse?.error ?: "Processing failed")
-                }
-            } else {
-                NetworkResult.error("API call failed: ${response.code()}")
-            }
-        } catch (e: Exception) {
-            NetworkResult.error(e.message ?: "Failed to trigger processing", e)
         }
     }
 
@@ -194,14 +69,9 @@ class DocumentRepository @Inject constructor(
      */
     suspend fun getDocument(documentId: String): NetworkResult<Document> {
         return try {
-            val document = firestore.collection("documents")
-                .document(documentId)
-                .get()
-                .await()
-            
-            if (document.exists()) {
-                val doc = Document.fromMap(document.data ?: emptyMap())
-                NetworkResult.success(doc)
+            val document = documentDao.getDocumentById(documentId)
+            if (document != null) {
+                NetworkResult.success(document)
             } else {
                 NetworkResult.error("Document not found")
             }
@@ -215,32 +85,9 @@ class DocumentRepository @Inject constructor(
      */
     suspend fun deleteDocument(documentId: String): NetworkResult<Unit> {
         return try {
-            // Get document first to get storage path
-            val documentResult = getDocument(documentId)
-            if (documentResult is NetworkResult.Success) {
-                val document = documentResult.data
-                
-                // Delete from Firestore
-                firestore.collection("documents")
-                    .document(documentId)
-                    .delete()
-                    .await()
-                
-                // Delete from Firebase Storage
-                if (document.storagePath.isNotEmpty()) {
-                    storage.reference.child(document.storagePath)
-                        .delete()
-                        .await()
-                }
-                
-                // Delete from backend
-                try {
-                    apiService.deleteDocument(documentId)
-                } catch (e: Exception) {
-                    // Don't fail the operation if backend deletion fails
-                    e.printStackTrace()
-                }
-                
+            val document = documentDao.getDocumentById(documentId)
+            if (document != null) {
+                documentDao.deleteDocument(document)
                 NetworkResult.success(Unit)
             } else {
                 NetworkResult.error("Document not found")
@@ -261,71 +108,73 @@ class DocumentRepository @Inject constructor(
         wordCount: Int? = null
     ): NetworkResult<Unit> {
         return try {
-            val updates = mutableMapOf<String, Any>(
-                "status" to status.name
-            )
-            
-            errorMessage?.let { updates["errorMessage"] = it }
-            pageCount?.let { updates["pageCount"] = it }
-            wordCount?.let { updates["wordCount"] = it }
-            
-            if (status == DocumentStatus.PROCESSED) {
-                updates["processedAt"] = System.currentTimeMillis()
+            val document = documentDao.getDocumentById(documentId)
+            if (document != null) {
+                val updatedDocument = document.copy(
+                    status = status,
+                    errorMessage = errorMessage,
+                    pageCount = pageCount,
+                    wordCount = wordCount,
+                    processedAt = if (status == DocumentStatus.PROCESSED) System.currentTimeMillis() else document.processedAt
+                )
+                documentDao.updateDocument(updatedDocument)
+                NetworkResult.success(Unit)
+            } else {
+                NetworkResult.error("Document not found")
             }
-            
-            firestore.collection("documents")
-                .document(documentId)
-                .update(updates)
-                .await()
-            
-            NetworkResult.success(Unit)
         } catch (e: Exception) {
-            NetworkResult.error(e.message ?: "Failed to update document status", e)
+            NetworkResult.error(e.message ?: "Failed to update status", e)
         }
     }
 
     /**
-     * Gets document summary from backend
+     * Returns a lightweight local summary for a document.
      */
     suspend fun getDocumentSummary(documentId: String): NetworkResult<String> {
         return try {
-            val response = apiService.getDocumentSummary(documentId)
-            if (response.isSuccessful) {
-                val apiResponse = response.body()
-                if (apiResponse?.success == true) {
-                    NetworkResult.success(apiResponse.data ?: "No summary available")
-                } else {
-                    NetworkResult.error(apiResponse?.error ?: "Failed to get summary")
-                }
-            } else {
-                NetworkResult.error("API call failed: ${response.code()}")
+            val document = documentDao.getDocumentById(documentId)
+                ?: return NetworkResult.error("Document not found")
+
+            val summary = buildString {
+                append("File: ${document.fileName}. ")
+                append("Type: ${document.fileType.uppercase()}. ")
+                append("Status: ${document.status.name.lowercase().replaceFirstChar { it.uppercase() }}. ")
+                document.pageCount?.let { append("Pages: $it. ") }
+                document.wordCount?.let { append("Words: $it. ") }
             }
+
+            NetworkResult.success(summary.trim())
         } catch (e: Exception) {
             NetworkResult.error(e.message ?: "Failed to get document summary", e)
         }
     }
 
     /**
-     * Searches within a document
+     * Performs a basic local metadata search for a document.
      */
     suspend fun searchDocument(documentId: String, query: String): NetworkResult<List<String>> {
         return try {
-            val response = apiService.searchDocument(
-                documentId = documentId,
-                query = mapOf("query" to query)
-            )
-            if (response.isSuccessful) {
-                val apiResponse = response.body()
-                if (apiResponse?.success == true) {
-                    NetworkResult.success(apiResponse.data ?: emptyList())
-                } else {
-                    NetworkResult.error(apiResponse?.error ?: "Search failed")
-                }
-            } else {
-                NetworkResult.error("API call failed: ${response.code()}")
+            val document = documentDao.getDocumentById(documentId)
+                ?: return NetworkResult.error("Document not found")
+
+            val normalizedQuery = query.trim().lowercase()
+            val matches = mutableListOf<String>()
+
+            if (document.fileName.lowercase().contains(normalizedQuery)) {
+                matches.add("Matched file name: ${document.fileName}")
             }
+            if (document.fileType.lowercase().contains(normalizedQuery)) {
+                matches.add("Matched file type: ${document.fileType}")
+            }
+            document.errorMessage?.let {
+                if (it.lowercase().contains(normalizedQuery)) {
+                    matches.add("Matched error message: $it")
+                }
+            }
+
+            NetworkResult.success(matches)
         } catch (e: Exception) {
-            NetworkResult.error(e.message ?: "Search failed", e)
+            NetworkResult.error(e.message ?: "Failed to search document", e)
         }
     }
 }

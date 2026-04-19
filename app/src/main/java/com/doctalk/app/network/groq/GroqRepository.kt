@@ -133,13 +133,10 @@ class GroqRepository @Inject constructor(
     }
 
     /**
-     * Gets Groq API key from secure storage
-     * In a real app, this should be stored securely (e.g., Android Keystore)
+     * Gets Groq API key from Constants
      */
     private fun getGroqApiKey(): String {
-        // TODO: Implement secure API key storage
-        // For now, return placeholder - user should set this
-        return System.getenv("GROQ_API_KEY") ?: ""
+        return com.doctalk.app.utils.Constants.GROQ_API_KEY
     }
 
     /**

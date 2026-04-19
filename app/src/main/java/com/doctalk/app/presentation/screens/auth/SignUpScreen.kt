@@ -23,6 +23,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -95,14 +96,7 @@ fun SignUpScreen(
             // Top App Bar
             TopAppBar(
                 title = stringResource(id = R.string.sign_up),
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(
-                            imageVector = Icons.Default.ArrowBack,
-                            contentDescription = "Back"
-                        )
-                    }
-                }
+                onBackClick = onNavigateBack
             )
             
             // Content
@@ -117,7 +111,7 @@ fun SignUpScreen(
                 
                 // App Logo
                 Image(
-                    painter = painterResource(id = R.drawable.ic_launcher_foreground),
+                    painter = painterResource(id = R.mipmap.ic_launcher),
                     contentDescription = "DocTalk Logo",
                     modifier = Modifier.size(60.dp)
                 )
@@ -268,7 +262,7 @@ fun SignUpScreen(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    androidx.compose.foundation.layout.HorizontalDivider(
+                    HorizontalDivider(
                         modifier = Modifier.weight(1f),
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
                     )
@@ -278,7 +272,7 @@ fun SignUpScreen(
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                     )
-                    androidx.compose.foundation.layout.HorizontalDivider(
+                    HorizontalDivider(
                         modifier = Modifier.weight(1f),
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
                     )

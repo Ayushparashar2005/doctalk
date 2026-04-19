@@ -1,7 +1,10 @@
 package com.doctalk.app.presentation.components
 
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -20,6 +23,7 @@ fun DocTalkButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
+    leadingIcon: (@Composable (() -> Unit))? = null,
     content: @Composable (() -> Unit)? = null
 ) {
     Button(
@@ -45,10 +49,16 @@ fun DocTalkButton(
         if (content != null) {
             content()
         } else {
-            androidx.compose.material3.Text(
-                text = text,
-                style = MaterialTheme.typography.labelLarge
-            )
+            Row {
+                leadingIcon?.let {
+                    it()
+                    Spacer(modifier = Modifier.width(8.dp))
+                }
+                androidx.compose.material3.Text(
+                    text = text,
+                    style = MaterialTheme.typography.labelLarge
+                )
+            }
         }
     }
 }

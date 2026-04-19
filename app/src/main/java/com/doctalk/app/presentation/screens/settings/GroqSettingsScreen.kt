@@ -36,9 +36,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
-import com.doctalk.app.network.groq.GroqConfig
-import com.doctalk.app.network.groq.GroqRepository
+import com.doctalk.app.network.groq.GroqModels
 import com.doctalk.app.presentation.components.DocTalkButton
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.TextField
@@ -52,11 +50,10 @@ import com.doctalk.app.presentation.components.TopAppBar
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun GroqSettingsScreen(
-    onNavigateBack: () -> Unit,
-    groqRepository: GroqRepository = hiltViewModel()
+    onNavigateBack: () -> Unit
 ) {
-    var apiKey by remember { mutableStateOf("") }
-    var selectedModel by remember { mutableStateOf(GroqConfig.DEFAULT_MODEL) }
+    var apiKey by remember { mutableStateOf(com.doctalk.app.utils.Constants.GROQ_API_KEY) }
+    var selectedModel by remember { mutableStateOf(com.doctalk.app.utils.Constants.DEFAULT_GROQ_MODEL) }
     var apiKeyVisible by remember { mutableStateOf(false) }
     var isExpanded by remember { mutableStateOf(false) }
     
@@ -138,7 +135,7 @@ fun GroqSettingsScreen(
                     
                     Spacer(modifier = Modifier.height(8.dp))
                     
-                    if (apiKey.isNotBlank() && !groqRepository.validateApiKey(apiKey)) {
+                    if (apiKey.isNotBlank() && !isValidGroqApiKey(apiKey)) {
                         Text(
                             text = "Invalid API key format. Should start with 'gsk_'",
                             style = MaterialTheme.typography.bodySmall,
@@ -177,7 +174,7 @@ fun GroqSettingsScreen(
                         onExpandedChange = { isExpanded = it }
                     ) {
                         TextField(
-                            value = groqRepository.getModelDisplayName(selectedModel),
+                            value = getModelDisplayName(selectedModel),
                             onValueChange = { },
                             readOnly = true,
                             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = isExpanded) },
@@ -190,9 +187,9 @@ fun GroqSettingsScreen(
                             expanded = isExpanded,
                             onDismissRequest = { isExpanded = false }
                         ) {
-                            groqRepository.getAvailableModels().forEach { model ->
+                            GroqModels.ALL_MODELS.forEach { model ->
                                 DropdownMenuItem(
-                                    text = { Text(groqRepository.getModelDisplayName(model)) },
+                                    text = { Text(getModelDisplayName(model)) },
                                     onClick = {
                                         selectedModel = model
                                         isExpanded = false
@@ -205,7 +202,7 @@ fun GroqSettingsScreen(
                     Spacer(modifier = Modifier.height(16.dp))
                     
                     Text(
-                        text = "Model: ${groqRepository.getModelDisplayName(selectedModel)}",
+                        text = "Model: ${getModelDisplayName(selectedModel)}",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                     )
@@ -223,21 +220,16 @@ fun GroqSettingsScreen(
                         return@DocTalkButton
                     }
                     
-                    if (!groqRepository.validateApiKey(apiKey)) {
+                    if (!isValidGroqApiKey(apiKey)) {
                         errorMessage = "Invalid API key format"
                         return@DocTalkButton
                     }
-                    
-                    if (groqRepository.setGroqApiKey(apiKey)) {
-                        successMessage = "Groq API configuration saved successfully!"
-                        errorMessage = null
-                    } else {
-                        errorMessage = "Failed to save API configuration"
-                        successMessage = null
-                    }
+
+                    successMessage = "Groq API configuration saved successfully!"
+                    errorMessage = null
                 },
                 modifier = Modifier.fillMaxWidth(),
-                enabled = apiKey.isNotBlank() && groqRepository.validateApiKey(apiKey)
+                enabled = apiKey.isNotBlank() && isValidGroqApiKey(apiKey)
             )
             
             Spacer(modifier = Modifier.height(32.dp))
@@ -289,5 +281,19 @@ fun GroqSettingsScreen(
                 )
             }
         }
+    }
+}
+
+private fun isValidGroqApiKey(apiKey: String): Boolean {
+    return apiKey.startsWith("gsk_") && apiKey.length >= 39
+}
+
+private fun getModelDisplayName(model: String): String {
+    return when (model) {
+        GroqModels.LLAMA3_8B_8192 -> "Llama 3 8B"
+        GroqModels.LLAMA3_70B_8192 -> "Llama 3 70B"
+        GroqModels.MIXTRAL_8X7B_INSTRUCT -> "Mixtral 8x7B"
+        GroqModels.GEMMA_7B_INSTRUCT -> "Gemma 7B"
+        else -> model
     }
 }

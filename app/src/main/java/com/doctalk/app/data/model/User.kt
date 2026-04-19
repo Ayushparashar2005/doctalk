@@ -1,49 +1,24 @@
 package com.doctalk.app.data.model
 
-import com.google.firebase.auth.FirebaseUser
+import androidx.room.Entity
+import androidx.room.PrimaryKey
 
 /**
- * Data class representing a user in the system
+ * Data class representing a user in the system, stored in local database
  */
+@Entity(tableName = "users")
 data class User(
-    val id: String = "",
+    @PrimaryKey val id: String = "",
     val email: String = "",
     val displayName: String = "",
     val photoUrl: String? = null,
     val createdAt: Long = System.currentTimeMillis(),
     val lastLoginAt: Long = System.currentTimeMillis(),
     val isEmailVerified: Boolean = false,
-    val provider: String = "email" // email, google, etc.
+    val provider: String = "local"
 ) {
-    companion object {
-        /**
-         * Creates a User object from FirebaseUser
-         */
-        fun fromFirebaseUser(firebaseUser: FirebaseUser): User {
-            return User(
-                id = firebaseUser.uid,
-                email = firebaseUser.email ?: "",
-                displayName = firebaseUser.displayName ?: "",
-                photoUrl = firebaseUser.photoUrl?.toString(),
-                isEmailVerified = firebaseUser.isEmailVerified,
-                provider = getProvider(firebaseUser)
-            )
-        }
-
-        /**
-         * Determines the authentication provider
-         */
-        private fun getProvider(firebaseUser: FirebaseUser): String {
-            return when {
-                firebaseUser.providerData.any { it.providerId == "google.com" } -> "google"
-                firebaseUser.providerData.any { it.providerId == "password" } -> "email"
-                else -> "unknown"
-            }
-        }
-    }
-
     /**
-     * Converts User to a Map for Firestore
+     * Converts User to a Map (if needed for some operations)
      */
     fun toMap(): Map<String, Any> {
         return mapOf(
@@ -60,7 +35,7 @@ data class User(
 
     companion object {
         /**
-         * Creates a User from a Firestore document
+         * Creates a User from a map
          */
         fun fromMap(map: Map<String, Any>): User {
             return User(
@@ -71,7 +46,7 @@ data class User(
                 createdAt = (map["createdAt"] as? Long) ?: System.currentTimeMillis(),
                 lastLoginAt = (map["lastLoginAt"] as? Long) ?: System.currentTimeMillis(),
                 isEmailVerified = map["isEmailVerified"] as? Boolean ?: false,
-                provider = map["provider"] as? String ?: "email"
+                provider = map["provider"] as? String ?: "local"
             )
         }
     }

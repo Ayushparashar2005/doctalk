@@ -42,7 +42,8 @@ data class GroqResponseFormat(
  */
 data class GroqChatResponse(
     val id: String,
-    val object: String,
+    @SerializedName("object")
+    val objectType: String,
     val created: Long,
     val model: String,
     val choices: List<GroqChoice>,

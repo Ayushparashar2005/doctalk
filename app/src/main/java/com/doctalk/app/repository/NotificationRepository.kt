@@ -1,99 +1,41 @@
 package com.doctalk.app.repository
 
 import com.doctalk.app.network.NetworkResult
-import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.messaging.FirebaseMessaging
-import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * Repository for handling notification operations
+ * Local-only repository for handling notification operations
  */
 @Singleton
-class NotificationRepository @Inject constructor(
-    private val firestore: FirebaseFirestore,
-    private val firebaseAuth: FirebaseAuth
-) {
+class NotificationRepository @Inject constructor() {
 
     /**
-     * Gets FCM token for the current user
+     * FCM not used in local mode
      */
     suspend fun getFCMToken(): NetworkResult<String> {
-        return try {
-            val token = FirebaseMessaging.getInstance().token.await()
-            NetworkResult.success(token)
-        } catch (e: Exception) {
-            NetworkResult.error(e.message ?: "Failed to get FCM token", e)
-        }
+        return NetworkResult.success("local_token")
     }
 
     /**
-     * Saves FCM token to Firestore
+     * Local implementation of saving token (no-op)
      */
     suspend fun saveFCMToken(token: String): NetworkResult<Unit> {
-        return try {
-            val userId = firebaseAuth.currentUser?.uid
-                ?: return NetworkResult.error("User not authenticated")
-            
-            firestore.collection("users")
-                .document(userId)
-                .update("fcmToken", token)
-                .await()
-            
-            NetworkResult.success(Unit)
-        } catch (e: Exception) {
-            NetworkResult.error(e.message ?: "Failed to save FCM token", e)
-        }
+        return NetworkResult.success(Unit)
     }
 
     /**
-     * Enables/disables notifications for the user
+     * Local implementation of updating settings (no-op)
      */
     suspend fun updateNotificationSettings(enabled: Boolean): NetworkResult<Unit> {
-        return try {
-            val userId = firebaseAuth.currentUser?.uid
-                ?: return NetworkResult.error("User not authenticated")
-            
-            firestore.collection("users")
-                .document(userId)
-                .update("notificationsEnabled", enabled)
-                .await()
-            
-            NetworkResult.success(Unit)
-        } catch (e: Exception) {
-            NetworkResult.error(e.message ?: "Failed to update notification settings", e)
-        }
+        return NetworkResult.success(Unit)
     }
 
-    /**
-     * Subscribes to a topic for document notifications
-     */
     suspend fun subscribeToDocumentTopic(documentId: String): NetworkResult<Unit> {
-        return try {
-            FirebaseMessaging.getInstance()
-                .subscribeToTopic("document_$documentId")
-                .await()
-            
-            NetworkResult.success(Unit)
-        } catch (e: Exception) {
-            NetworkResult.error(e.message ?: "Failed to subscribe to topic", e)
-        }
+        return NetworkResult.success(Unit)
     }
 
-    /**
-     * Unsubscribes from a document topic
-     */
     suspend fun unsubscribeFromDocumentTopic(documentId: String): NetworkResult<Unit> {
-        return try {
-            FirebaseMessaging.getInstance()
-                .unsubscribeFromTopic("document_$documentId")
-                .await()
-            
-            NetworkResult.success(Unit)
-        } catch (e: Exception) {
-            NetworkResult.error(e.message ?: "Failed to unsubscribe from topic", e)
-        }
+        return NetworkResult.success(Unit)
     }
 }

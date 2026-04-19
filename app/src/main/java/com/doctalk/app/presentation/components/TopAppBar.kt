@@ -43,7 +43,7 @@ fun DocTalkTopAppBar(
             )
         },
         modifier = modifier,
-        navigationIcon = navigationIcon,
+        navigationIcon = navigationIcon ?: {},
         actions = actions,
         colors = colors
     )
@@ -79,7 +79,9 @@ fun TopAppBar(
                     )
                 }
             }
-        } else null,
+        } else {
+            {}
+        },
         actions = actions,
         colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
             containerColor = MaterialTheme.colorScheme.surface,

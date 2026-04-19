@@ -1,10 +1,17 @@
 package com.doctalk.app.data.model
 
+import androidx.room.Entity
+import androidx.room.PrimaryKey
+import androidx.room.TypeConverter
+import com.google.gson.Gson
+
 /**
- * Data class representing a chat message
+ * Data class representing a chat message, stored in local database
  */
+@Entity(tableName = "messages")
 data class Message(
-    val id: String = "",
+    @PrimaryKey val id: String = "",
+    val sessionId: String = "",
     val documentId: String = "",
     val userId: String = "",
     val content: String = "",
@@ -14,11 +21,12 @@ data class Message(
     val metadata: MessageMetadata? = null
 ) {
     /**
-     * Converts Message to a Map for Firestore
+     * Converts Message to a Map
      */
     fun toMap(): Map<String, Any> {
         return mapOf(
             "id" to id,
+            "sessionId" to sessionId,
             "documentId" to documentId,
             "userId" to userId,
             "content" to content,
@@ -30,12 +38,10 @@ data class Message(
     }
 
     companion object {
-        /**
-         * Creates a Message from a Firestore document
-         */
         fun fromMap(map: Map<String, Any>): Message {
             return Message(
                 id = map["id"] as? String ?: "",
+                sessionId = map["sessionId"] as? String ?: "",
                 documentId = map["documentId"] as? String ?: "",
                 userId = map["userId"] as? String ?: "",
                 content = map["content"] as? String ?: "",
@@ -57,28 +63,17 @@ data class Message(
     }
 }
 
-/**
- * Enum representing message type
- */
 enum class MessageType {
-    USER,       // Message sent by user
-    AI,         // Message sent by AI assistant
-    SYSTEM      // System message (e.g., notifications)
+    USER, AI, SYSTEM
 }
 
-/**
- * Data class for message metadata
- */
 data class MessageMetadata(
     val contextUsed: Boolean = false,
-    val responseTime: Long = 0L, // in milliseconds
+    val responseTime: Long = 0L,
     val tokensUsed: Int = 0,
     val modelUsed: String = "",
     val confidence: Float = 0.0f
 ) {
-    /**
-     * Converts MessageMetadata to a Map for Firestore
-     */
     fun toMap(): Map<String, Any> {
         return mapOf(
             "contextUsed" to contextUsed,
@@ -90,9 +85,6 @@ data class MessageMetadata(
     }
 
     companion object {
-        /**
-         * Creates MessageMetadata from a Map
-         */
         fun fromMap(map: Map<String, Any>): MessageMetadata {
             return MessageMetadata(
                 contextUsed = map["contextUsed"] as? Boolean ?: false,
@@ -105,23 +97,22 @@ data class MessageMetadata(
     }
 }
 
-/**
- * Extension function to check if message is from AI
- */
-fun Message.isFromAI(): Boolean {
-    return messageType == MessageType.AI
+class Converters {
+    @TypeConverter
+    fun fromMessageType(value: MessageType): String = value.name
+
+    @TypeConverter
+    fun toMessageType(value: String): MessageType = MessageType.valueOf(value)
+
+    @TypeConverter
+    fun fromMetadata(value: MessageMetadata?): String? = value?.let { Gson().toJson(it) }
+
+    @TypeConverter
+    fun toMetadata(value: String?): MessageMetadata? = value?.let { Gson().fromJson(it, MessageMetadata::class.java) }
 }
 
-/**
- * Extension function to check if message is from user
- */
-fun Message.isFromUser(): Boolean {
-    return messageType == MessageType.USER
-}
-
-/**
- * Extension function to format timestamp
- */
+fun Message.isFromAI(): Boolean = messageType == MessageType.AI
+fun Message.isFromUser(): Boolean = messageType == MessageType.USER
 fun Message.getFormattedTime(): String {
     val date = java.util.Date(timestamp)
     val format = java.text.SimpleDateFormat("h:mm a", java.util.Locale.getDefault())

@@ -24,7 +24,7 @@ class HomeViewModel @Inject constructor(
     private val notificationRepository: NotificationRepository
 ) : ViewModel() {
 
-    private val _currentUser = MutableStateFlow(authRepository.currentUser)
+    private val _currentUser = MutableStateFlow<com.doctalk.app.data.model.User?>(null)
     val currentUser: StateFlow<com.doctalk.app.data.model.User?> = _currentUser.asStateFlow()
 
     private val _documents = MutableStateFlow<List<Document>>(emptyList())
@@ -35,6 +35,9 @@ class HomeViewModel @Inject constructor(
 
     private val _errorMessage = MutableStateFlow<String?>(null)
     val errorMessage: StateFlow<String?> = _errorMessage.asStateFlow()
+
+    private val _successMessage = MutableStateFlow<String?>(null)
+    val successMessage: StateFlow<String?> = _successMessage.asStateFlow()
 
     private val _stats = MutableStateFlow<HomeStats>(HomeStats())
     val stats: StateFlow<HomeStats> = _stats.asStateFlow()
@@ -50,7 +53,9 @@ class HomeViewModel @Inject constructor(
      */
     private fun loadUserData() {
         viewModelScope.launch {
-            _currentUser.value = authRepository.currentUser
+            authRepository.getAuthStateFlow().collect { user ->
+                _currentUser.value = user
+            }
         }
     }
 
@@ -122,6 +127,7 @@ class HomeViewModel @Inject constructor(
                     _currentUser.value = null
                     _documents.value = emptyList()
                     _stats.value = HomeStats()
+                    _successMessage.value = "Signed out successfully"
                 }
                 is com.doctalk.app.network.NetworkResult.Error -> {
                     _errorMessage.value = "Failed to sign out"
@@ -138,6 +144,13 @@ class HomeViewModel @Inject constructor(
      */
     fun clearError() {
         _errorMessage.value = null
+    }
+
+    /**
+     * Clears success message.
+     */
+    fun clearSuccessMessage() {
+        _successMessage.value = null
     }
 
     /**

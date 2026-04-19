@@ -25,7 +25,7 @@ object GroqModule {
     @Singleton
     fun provideGroqApiService(): GroqApiService {
         return Retrofit.Builder()
-            .baseUrl("https://api.groq.com/openai/v1/")
+            .baseUrl(com.doctalk.app.utils.Constants.GROQ_BASE_URL)
             .addConverterFactory(GsonConverterFactory.create())
             .build()
             .create(GroqApiService::class.java)

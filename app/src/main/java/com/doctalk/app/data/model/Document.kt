@@ -1,17 +1,21 @@
 package com.doctalk.app.data.model
 
+import androidx.room.Entity
+import androidx.room.PrimaryKey
+
 /**
- * Data class representing a document uploaded by a user
+ * Data class representing a document uploaded by a user, stored in local database
  */
+@Entity(tableName = "documents")
 data class Document(
-    val id: String = "",
+    @PrimaryKey val id: String = "",
     val userId: String = "",
     val fileName: String = "",
     val fileType: String = "", // pdf, txt
     val fileSize: Long = 0L, // in bytes
-    val downloadUrl: String = "",
+    val downloadUrl: String = "", // In local mode, this might be a local file path
     val storagePath: String = "",
-    val status: DocumentStatus = DocumentStatus.UPLOADING,
+    val status: DocumentStatus = DocumentStatus.PROCESSING,
     val uploadedAt: Long = System.currentTimeMillis(),
     val processedAt: Long? = null,
     val errorMessage: String? = null,
@@ -20,7 +24,7 @@ data class Document(
     val thumbnailUrl: String? = null
 ) {
     /**
-     * Converts Document to a Map for Firestore
+     * Converts Document to a Map
      */
     fun toMap(): Map<String, Any> {
         return mapOf(
@@ -42,9 +46,6 @@ data class Document(
     }
 
     companion object {
-        /**
-         * Creates a Document from a Firestore document
-         */
         fun fromMap(map: Map<String, Any>): Document {
             return Document(
                 id = map["id"] as? String ?: "",
@@ -55,9 +56,9 @@ data class Document(
                 downloadUrl = map["downloadUrl"] as? String ?: "",
                 storagePath = map["storagePath"] as? String ?: "",
                 status = try {
-                    DocumentStatus.valueOf((map["status"] as? String) ?: DocumentStatus.UPLOADING.name)
+                    DocumentStatus.valueOf((map["status"] as? String) ?: DocumentStatus.PROCESSING.name)
                 } catch (e: IllegalArgumentException) {
-                    DocumentStatus.UPLOADING
+                    DocumentStatus.PROCESSING
                 },
                 uploadedAt = (map["uploadedAt"] as? Long) ?: System.currentTimeMillis(),
                 processedAt = (map["processedAt"] as? Long)?.takeIf { it > 0L },
@@ -74,11 +75,11 @@ data class Document(
  * Enum representing document processing status
  */
 enum class DocumentStatus {
-    UPLOADING,    // Document is being uploaded to Firebase Storage
-    PROCESSING,   // Document is being processed by backend
-    PROCESSED,    // Document has been processed and is ready for chat
-    FAILED,       // Document processing failed
-    DELETED       // Document has been deleted
+    UPLOADING,
+    PROCESSING,
+    PROCESSED,
+    FAILED,
+    DELETED
 }
 
 /**

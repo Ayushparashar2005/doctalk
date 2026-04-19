@@ -1,0 +1,20 @@
+# Android / Gradle
+.gradle/
+**/build/
+local.properties
+
+# Environment files and secrets
+.env
+.env.*
+backend/.env
+app/google-services.json
+
+# Keep sample env file in repo
+!backend/.env.example
+
+# Logs and temp artifacts
+*.log
+
+# Java heap dumps / profiler output
+*.hprof
+java_pid*.hprof
