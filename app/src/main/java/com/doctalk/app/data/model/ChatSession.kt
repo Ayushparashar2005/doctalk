@@ -19,7 +19,7 @@ data class ChatSession(
     val lastMessagePreview: String = ""
 ) {
     /**
-     * Converts ChatSession to a Map for Firestore
+        * Converts ChatSession to a Map for local persistence
      */
     fun toMap(): Map<String, Any> {
         return mapOf(
@@ -37,7 +37,7 @@ data class ChatSession(
 
     companion object {
         /**
-         * Creates a ChatSession from a Firestore document
+         * Creates a ChatSession from a stored map
          */
         fun fromMap(map: Map<String, Any>): ChatSession {
             return ChatSession(

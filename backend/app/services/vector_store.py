@@ -1,342 +1,188 @@
 """
-Vector store service for managing document embeddings in Pinecone
+Vector store service for managing document chunks in local SQLite.
 """
 
-import asyncio
-import logging
-from typing import List, Dict, Any, Optional, Tuple
-import pinecone
-from pinecone import Pinecone, ServerlessSpec, PodSpec
-import numpy as np
-from datetime import datetime
-import json
+from __future__ import annotations
 
-from app.core.config import settings
+import logging
+from typing import Any, Dict, List
+
+import numpy as np
+
+from app.core.local_database import local_database
 from app.services.embedding_service import EmbeddingService
 
 logger = logging.getLogger(__name__)
 
+
 class VectorStore:
-    """Service for managing vector embeddings in Pinecone"""
-    
+    """Service for managing chunk embeddings in SQLite."""
+
     def __init__(self):
-        self.client = None
-        self.index = None
-        self.index_name = settings.pinecone_index_name
-        self.dimension = settings.pinecone_dimension
-        self.similarity_threshold = settings.similarity_threshold
-    
+        self.similarity_threshold = 0.35
+        self._initialized = False
+
     async def init_connection(self):
-        """Initialize Pinecone connection"""
-        try:
-            # Initialize Pinecone client
-            self.client = Pinecone(api_key=settings.pinecone_api_key)
-            
-            # Check if index exists
-            if self.index_name not in self.client.list_indexes().names():
-                await self._create_index()
-            
-            # Connect to index
-            self.index = self.client.Index(self.index_name)
-            
-            # Get index stats
-            stats = self.index.describe_index_stats()
-            logger.info(f"Connected to Pinecone index: {self.index_name}")
-            logger.info(f"Index stats: {stats}")
-            
-        except Exception as e:
-            logger.error(f"Failed to initialize Pinecone: {e}")
-            raise
-    
-    async def _create_index(self):
-        """Create a new Pinecone index"""
-        try:
-            # For serverless index (recommended for production)
-            self.client.create_index(
-                name=self.index_name,
-                dimension=self.dimension,
-                metric="cosine",
-                spec=ServerlessSpec(
-                    cloud="aws",
-                    region="us-west-2"
-                )
-            )
-            logger.info(f"Created Pinecone index: {self.index_name}")
-            
-        except Exception as e:
-            logger.error(f"Failed to create Pinecone index: {e}")
-            raise
-    
+        """Initialize the local database connection."""
+        if self._initialized:
+            return
+
+        await local_database.initialize()
+        self._initialized = True
+        logger.info("Initialized local SQLite vector store")
+
+    def _ensure_initialized(self):
+        if not self._initialized:
+            raise RuntimeError("Local vector store is not initialized")
+
+    def _cosine_similarity(self, left: List[float], right: List[float]) -> float:
+        left_vector = np.array(left, dtype=float)
+        right_vector = np.array(right, dtype=float)
+
+        if left_vector.size == 0 or right_vector.size == 0:
+            return 0.0
+
+        denominator = np.linalg.norm(left_vector) * np.linalg.norm(right_vector)
+        if denominator == 0:
+            return 0.0
+
+        return float(np.dot(left_vector, right_vector) / denominator)
+
     async def store_document_embeddings(
-        self, 
+        self,
         chunk_embeddings: List[Dict[str, Any]],
-        document_id: str
+        document_id: str,
     ) -> bool:
-        """Store document embeddings in Pinecone"""
-        if not self.index:
-            raise Exception("Pinecone index not initialized")
-        
+        """Store document chunks and embeddings in SQLite."""
+        self._ensure_initialized()
+
         try:
-            # Prepare vectors for upsert
-            vectors = []
-            current_time = datetime.utcnow().isoformat()
-            
-            for chunk_embedding in chunk_embeddings:
-                vector = {
-                    "id": f"{document_id}_{chunk_embedding['chunk_id']}",
-                    "values": chunk_embedding['embedding'],
-                    "metadata": {
-                        "document_id": document_id,
-                        "chunk_id": chunk_embedding['chunk_id'],
-                        "chunk_index": chunk_embedding['chunk_index'],
-                        "text": chunk_embedding['text'],
-                        "word_count": chunk_embedding.get('word_count', 0),
-                        "token_count": chunk_embedding.get('token_count', 0),
-                        "created_at": current_time
-                    }
-                }
-                vectors.append(vector)
-            
-            # Upsert in batches (Pinecone limit is 1000 vectors per request)
-            batch_size = 1000
-            for i in range(0, len(vectors), batch_size):
-                batch = vectors[i:i + batch_size]
-                self.index.upsert(vectors=batch)
-                
-                # Add small delay to avoid rate limits
-                if i + batch_size < len(vectors):
-                    await asyncio.sleep(0.1)
-            
-            logger.info(f"Stored {len(vectors)} embeddings for document {document_id}")
+            await local_database.add_chunks(document_id, chunk_embeddings)
+            logger.info("Stored %s embeddings for document %s", len(chunk_embeddings), document_id)
             return True
-            
-        except Exception as e:
-            logger.error(f"Failed to store embeddings for document {document_id}: {e}")
+        except Exception as exc:
+            logger.error("Failed to store embeddings for document %s: %s", document_id, exc)
             return False
-    
+
     async def retrieve_context(
-        self, 
-        query: str, 
-        document_id: str, 
+        self,
+        query: str,
+        document_id: str,
         embedding_service: EmbeddingService,
-        top_k: int = 5
+        top_k: int = 5,
     ) -> List[Dict[str, Any]]:
-        """Retrieve relevant context for a query"""
-        if not self.index:
-            raise Exception("Pinecone index not initialized")
-        
+        """Retrieve relevant context for a query using cosine similarity."""
+        self._ensure_initialized()
+
         try:
-            # Create embedding for query
             query_embedding = await embedding_service.create_single_embedding(query)
-            
-            # Search for similar vectors
-            results = self.index.query(
-                vector=query_embedding,
-                filter={"document_id": document_id},
-                top_k=top_k,
-                include_metadata=True,
-                include_values=False
-            )
-            
-            # Process results
-            context_chunks = []
-            for match in results['matches']:
-                if match['score'] >= self.similarity_threshold:
-                    context_chunks.append({
-                        'text': match['metadata']['text'],
-                        'score': match['score'],
-                        'chunk_id': match['metadata']['chunk_id'],
-                        'chunk_index': match['metadata']['chunk_index'],
-                        'word_count': match['metadata'].get('word_count', 0)
-                    })
-            
-            logger.info(f"Retrieved {len(context_chunks)} context chunks for query")
-            return context_chunks
-            
-        except Exception as e:
-            logger.error(f"Failed to retrieve context: {e}")
+            chunks = await local_database.get_chunks(document_id)
+
+            scored_chunks: List[Dict[str, Any]] = []
+            for chunk in chunks:
+                score = self._cosine_similarity(query_embedding, chunk.get("embedding", []))
+                if score >= self.similarity_threshold:
+                    scored_chunks.append(
+                        {
+                            "text": chunk["text"],
+                            "score": score,
+                            "chunk_id": chunk["chunk_id"],
+                            "chunk_index": chunk["chunk_index"],
+                            "word_count": chunk.get("word_count", 0),
+                        }
+                    )
+
+            scored_chunks.sort(key=lambda item: item["score"], reverse=True)
+            return scored_chunks[:top_k]
+        except Exception as exc:
+            logger.error("Failed to retrieve context: %s", exc)
             return []
-    
+
     async def search_documents(
-        self, 
-        query: str, 
+        self,
+        query: str,
         embedding_service: EmbeddingService,
-        top_k: int = 10
+        top_k: int = 10,
     ) -> List[Dict[str, Any]]:
-        """Search across all documents"""
-        if not self.index:
-            raise Exception("Pinecone index not initialized")
-        
+        """Search across all documents in SQLite."""
+        self._ensure_initialized()
+
         try:
-            # Create embedding for query
             query_embedding = await embedding_service.create_single_embedding(query)
-            
-            # Search for similar vectors
-            results = self.index.query(
-                vector=query_embedding,
-                top_k=top_k,
-                include_metadata=True,
-                include_values=False
+            documents: List[Dict[str, Any]] = []
+
+            with local_database._connect() as connection:
+                rows = connection.execute("SELECT DISTINCT document_id FROM document_chunks").fetchall()
+
+            for row in rows:
+                document_id = row["document_id"]
+                chunks = await local_database.get_chunks(document_id)
+                matched_chunks = []
+
+                for chunk in chunks:
+                    score = self._cosine_similarity(query_embedding, chunk.get("embedding", []))
+                    if score >= self.similarity_threshold:
+                        matched_chunks.append(
+                            {
+                                "text": chunk["text"],
+                                "score": score,
+                                "chunk_id": chunk["chunk_id"],
+                                "chunk_index": chunk["chunk_index"],
+                            }
+                        )
+
+                if matched_chunks:
+                    documents.append(
+                        {
+                            "document_id": document_id,
+                            "chunks": sorted(matched_chunks, key=lambda item: item["score"], reverse=True),
+                        }
+                    )
+
+            documents.sort(
+                key=lambda item: max(chunk["score"] for chunk in item["chunks"]),
+                reverse=True,
             )
-            
-            # Group results by document
-            document_results = {}
-            for match in results['matches']:
-                if match['score'] >= self.similarity_threshold:
-                    doc_id = match['metadata']['document_id']
-                    if doc_id not in document_results:
-                        document_results[doc_id] = []
-                    
-                    document_results[doc_id].append({
-                        'text': match['metadata']['text'],
-                        'score': match['score'],
-                        'chunk_id': match['metadata']['chunk_id'],
-                        'chunk_index': match['metadata']['chunk_index']
-                    })
-            
-            # Sort documents by best match
-            sorted_documents = sorted(
-                document_results.items(),
-                key=lambda x: max(chunk['score'] for chunk in x[1]),
-                reverse=True
-            )
-            
-            return [{'document_id': doc_id, 'chunks': chunks} for doc_id, chunks in sorted_documents]
-            
-        except Exception as e:
-            logger.error(f"Failed to search documents: {e}")
+            return documents[:top_k]
+        except Exception as exc:
+            logger.error("Failed to search documents: %s", exc)
             return []
-    
+
     async def delete_document(self, document_id: str) -> bool:
-        """Delete all embeddings for a document"""
-        if not self.index:
-            raise Exception("Pinecone index not initialized")
-        
+        """Delete all stored chunks for a document."""
+        self._ensure_initialized()
+
         try:
-            # Get all vectors for this document
-            results = self.index.query(
-                vector=[0.0] * self.dimension,  # Dummy vector
-                filter={"document_id": document_id},
-                top_k=10000,  # Get all vectors
-                include_metadata=False
-            )
-            
-            if results['matches']:
-                # Extract vector IDs
-                vector_ids = [match['id'] for match in results['matches']]
-                
-                # Delete vectors
-                self.index.delete(ids=vector_ids)
-                logger.info(f"Deleted {len(vector_ids)} vectors for document {document_id}")
-            
+            await local_database.delete_document(document_id)
+            logger.info("Deleted local data for document %s", document_id)
             return True
-            
-        except Exception as e:
-            logger.error(f"Failed to delete document {document_id}: {e}")
+        except Exception as exc:
+            logger.error("Failed to delete document %s: %s", document_id, exc)
             return False
-    
+
     async def get_document_stats(self, document_id: str) -> Dict[str, Any]:
-        """Get statistics for a document"""
-        if not self.index:
-            raise Exception("Pinecone index not initialized")
-        
+        """Get statistics for a document."""
+        self._ensure_initialized()
+
         try:
-            # Get all vectors for this document
-            results = self.index.query(
-                vector=[0.0] * self.dimension,  # Dummy vector
-                filter={"document_id": document_id},
-                top_k=10000,  # Get all vectors
-                include_metadata=True
-            )
-            
-            if not results['matches']:
-                return {'chunk_count': 0, 'total_words': 0}
-            
-            # Calculate statistics
-            chunks = results['matches']
-            total_words = sum(match['metadata'].get('word_count', 0) for match in chunks)
-            
+            chunks = await local_database.get_chunks(document_id)
+            if not chunks:
+                return {"chunk_count": 0, "total_words": 0}
+
+            total_words = sum(chunk.get("word_count", 0) for chunk in chunks)
             return {
-                'chunk_count': len(chunks),
-                'total_words': total_words,
-                'avg_words_per_chunk': total_words / len(chunks) if chunks else 0
+                "chunk_count": len(chunks),
+                "total_words": total_words,
+                "average_words_per_chunk": total_words / len(chunks),
             }
-            
-        except Exception as e:
-            logger.error(f"Failed to get document stats: {e}")
-            return {'chunk_count': 0, 'total_words': 0}
-    
-    async def update_document_metadata(
-        self, 
-        document_id: str, 
-        metadata: Dict[str, Any]
-    ) -> bool:
-        """Update metadata for all chunks of a document"""
-        if not self.index:
-            raise Exception("Pinecone index not initialized")
-        
-        try:
-            # Get all vectors for this document
-            results = self.index.query(
-                vector=[0.0] * self.dimension,  # Dummy vector
-                filter={"document_id": document_id},
-                top_k=10000,  # Get all vectors
-                include_metadata=True
-            )
-            
-            if not results['matches']:
-                return True
-            
-            # Update metadata for each vector
-            for match in results['matches']:
-                updated_metadata = match['metadata'].copy()
-                updated_metadata.update(metadata)
-                
-                self.index.update(
-                    id=match['id'],
-                    metadata=updated_metadata
-                )
-            
-            logger.info(f"Updated metadata for {len(results['matches'])} chunks")
-            return True
-            
-        except Exception as e:
-            logger.error(f"Failed to update document metadata: {e}")
-            return False
-    
-    async def get_index_stats(self) -> Dict[str, Any]:
-        """Get overall index statistics"""
-        if not self.index:
-            raise Exception("Pinecone index not initialized")
-        
-        try:
-            stats = self.index.describe_index_stats()
-            return {
-                'total_vector_count': stats.get('totalVectorCount', 0),
-                'dimension': stats.get('dimension', self.dimension),
-                'index_fullness': stats.get('indexFullness', 0),
-                'namespaces': stats.get('namespaces', {})
-            }
-            
-        except Exception as e:
-            logger.error(f"Failed to get index stats: {e}")
-            return {}
-    
+        except Exception as exc:
+            logger.error("Failed to get document stats: %s", exc)
+            return {"chunk_count": 0, "total_words": 0}
+
     async def health_check(self) -> bool:
-        """Check if the vector store is healthy"""
+        """Check whether SQLite is reachable."""
         try:
-            if not self.index:
-                return False
-            
-            # Try a simple query
-            results = self.index.query(
-                vector=[0.0] * self.dimension,
-                top_k=1,
-                include_metadata=False
-            )
-            
-            return True
-            
-        except Exception as e:
-            logger.error(f"Vector store health check failed: {e}")
+            return await local_database.ping()
+        except Exception as exc:
+            logger.error("Vector store health check failed: %s", exc)
             return False

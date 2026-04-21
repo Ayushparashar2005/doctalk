@@ -73,7 +73,7 @@ class GroqRepository @Inject constructor(
                             context = context,
                             confidence = 1.0f, // Groq doesn't provide confidence scores
                             sources = emptyList(), // Will be populated by RAG system
-                            responseTime = 0L, // Will be calculated by caller
+                            responseTime = 0.0, // Will be calculated by caller
                             tokensUsed = groqResponse.usage.totalTokens,
                             modelUsed = groqResponse.model
                         )
@@ -133,10 +133,10 @@ class GroqRepository @Inject constructor(
     }
 
     /**
-     * Gets Groq API key from Constants
+        * Gets the Groq API key placeholder.
      */
     private fun getGroqApiKey(): String {
-        return com.doctalk.app.utils.Constants.GROQ_API_KEY
+        return ""
     }
 
     /**

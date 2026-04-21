@@ -18,3 +18,7 @@ app/google-services.json
 # Java heap dumps / profiler output
 *.hprof
 java_pid*.hprof
+
+# Python caches and local runtime data
+**/__pycache__/
+backend/data/

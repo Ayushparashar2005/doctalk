@@ -6,24 +6,13 @@ package com.doctalk.app.utils
 object Constants {
     
     // API Configuration
-    const val BASE_URL = "https://your-backend-api.com/api/" // Replace with actual backend URL
+    const val BASE_URL = "http://10.0.2.2:8001/api/"
     const val API_TIMEOUT = 30_000L // 30 seconds
     
     // Groq API Configuration
-    const val GROQ_API_KEY = ""
     const val GROQ_BASE_URL = "https://api.groq.com/openai/v1"
     const val DEFAULT_GROQ_MODEL = "llama3-8b-8192"
-    
-    // Firebase Collections
-    const val USERS_COLLECTION = "users"
-    const val DOCUMENTS_COLLECTION = "documents"
-    const val MESSAGES_COLLECTION = "messages"
-    const val CHAT_SESSIONS_COLLECTION = "chat_sessions"
-    const val NOTIFICATIONS_COLLECTION = "notifications"
-    
-    // Firebase Storage Paths
-    const val DOCUMENTS_STORAGE_PATH = "documents/"
-    const val THUMBNAILS_STORAGE_PATH = "thumbnails/"
+    const val PREF_SELECTED_GROQ_MODEL = "selected_groq_model"
     
     // File Upload Limits
     const val MAX_FILE_SIZE = 10 * 1024 * 1024L // 10MB in bytes

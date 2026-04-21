@@ -5,18 +5,10 @@
 -->
 <data-extraction-rules>
     <cloud-backup>
-        <!-- Exclude Firebase config files from cloud backup -->
-        <exclude domain="sharedpref" path="com.google.firebase.auth.xml" />
-        <exclude domain="sharedpref" path="com.google.firebase.firestore.xml" />
-        <exclude domain="sharedpref" path="com.google.firebase.storage.xml" />
         <!-- Exclude sensitive user data -->
         <exclude domain="sharedpref" path="user_preferences.xml" />
     </cloud-backup>
     <device-transfer>
-        <!-- Exclude Firebase config files from device transfer -->
-        <exclude domain="sharedpref" path="com.google.firebase.auth.xml" />
-        <exclude domain="sharedpref" path="com.google.firebase.firestore.xml" />
-        <exclude domain="sharedpref" path="com.google.firebase.storage.xml" />
         <!-- Exclude sensitive user data -->
         <exclude domain="sharedpref" path="user_preferences.xml" />
     </device-transfer>

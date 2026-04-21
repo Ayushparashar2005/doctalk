@@ -3,9 +3,8 @@ DocTalk RAG Backend - FastAPI Application
 A complete RAG system for document-based conversational AI
 """
 
-from fastapi import FastAPI, HTTPException, Depends, BackgroundTasks
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from contextlib import asynccontextmanager
 import uvicorn
 import os
@@ -15,8 +14,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from app.core.config import settings
-from app.core.database import init_database
-from app.core.security import verify_token
+from app.core.local_database import local_database
 from app.api.v1.api import api_router
 from app.services.document_processor import DocumentProcessor
 from app.services.rag_service import RAGService
@@ -29,14 +27,12 @@ embedding_service = EmbeddingService()
 vector_store = VectorStore()
 rag_service = RAGService(embedding_service, vector_store)
 
-security = HTTPBearer()
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan events"""
     # Startup
     print("Starting DocTalk RAG Backend...")
-    await init_database()
+    await local_database.initialize()
     await vector_store.init_connection()
     print("Backend initialized successfully!")
     
@@ -56,7 +52,7 @@ app = FastAPI(
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.ALLOWED_ORIGINS,
+    allow_origins=settings.allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -77,10 +73,11 @@ async def root():
 @app.get("/health")
 async def health_check():
     """Health check endpoint"""
+    database_ready = await local_database.ping()
     return {
         "status": "healthy",
         "services": {
-            "database": "connected",
+            "database": "connected" if database_ready else "error",
             "vector_store": "connected",
             "embedding_service": "ready"
         }
@@ -90,13 +87,9 @@ async def health_check():
 async def test_chat_endpoint(
     query: str,
     document_id: str,
-    credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
-    """Test chat endpoint without Firebase integration"""
+    """Test chat endpoint against the local RAG pipeline."""
     try:
-        # Verify token (simplified for testing)
-        token = credentials.credentials
-        
         # Get relevant context
         context = await rag_service.retrieve_context(
             query=query,
@@ -119,6 +112,6 @@ if __name__ == "__main__":
     uvicorn.run(
         "main:app",
         host="0.0.0.0",
-        port=8000,
+        port=8001,
         reload=True if os.getenv("ENVIRONMENT") == "development" else False
     )

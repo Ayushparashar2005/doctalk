@@ -7,8 +7,6 @@ import logging
 from typing import List, Dict, Any, Optional
 import numpy as np
 from sentence_transformers import SentenceTransformer
-import openai
-import tiktoken
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
@@ -17,32 +15,17 @@ class EmbeddingService:
     """Service for creating text embeddings"""
     
     def __init__(self):
-        self.embedding_model = settings.embedding_model
         self.model = None
-        self.tokenizer = None
         self._initialize_model()
     
     def _initialize_model(self):
         """Initialize the embedding model"""
         try:
-            # Try OpenAI embeddings first
-            if settings.openai_api_key:
-                openai.api_key = settings.openai_api_key
-                self.tokenizer = tiktoken.encoding_for_model(self.embedding_model)
-                logger.info(f"Initialized OpenAI embeddings: {self.embedding_model}")
-            else:
-                # Fallback to sentence transformers
-                self.model = SentenceTransformer('all-MiniLM-L6-v2')
-                logger.info("Initialized SentenceTransformer embeddings")
+            self.model = SentenceTransformer('all-MiniLM-L6-v2')
+            logger.info("Initialized SentenceTransformer embeddings")
         except Exception as e:
             logger.error(f"Failed to initialize embedding model: {e}")
-            # Fallback to sentence transformers
-            try:
-                self.model = SentenceTransformer('all-MiniLM-L6-v2')
-                logger.info("Fallback to SentenceTransformer embeddings")
-            except Exception as e2:
-                logger.error(f"Failed to initialize fallback model: {e2}")
-                raise
+            raise
     
     async def create_embeddings(self, texts: List[str]) -> List[List[float]]:
         """Create embeddings for a list of texts"""
@@ -50,9 +33,7 @@ class EmbeddingService:
             return []
         
         try:
-            if self.tokenizer:  # OpenAI embeddings
-                return await self._create_openai_embeddings(texts)
-            elif self.model:  # Sentence transformers
+            if self.model:
                 return await self._create_sentence_transformer_embeddings(texts)
             else:
                 raise Exception("No embedding model available")
@@ -60,36 +41,6 @@ class EmbeddingService:
         except Exception as e:
             logger.error(f"Failed to create embeddings: {e}")
             raise
-    
-    async def _create_openai_embeddings(self, texts: List[str]) -> List[List[float]]:
-        """Create embeddings using OpenAI API"""
-        embeddings = []
-        
-        # Process in batches to avoid rate limits
-        batch_size = 100
-        for i in range(0, len(texts), batch_size):
-            batch = texts[i:i + batch_size]
-            
-            try:
-                response = await openai.Embedding.acreate(
-                    model=self.embedding_model,
-                    input=batch
-                )
-                
-                batch_embeddings = [item['embedding'] for item in response['data']]
-                embeddings.extend(batch_embeddings)
-                
-                # Add delay to avoid rate limits
-                if i + batch_size < len(texts):
-                    await asyncio.sleep(0.1)
-                    
-            except Exception as e:
-                logger.error(f"OpenAI embedding batch failed: {e}")
-                # Fallback to sentence transformers for this batch
-                fallback_embeddings = await self._create_sentence_transformer_embeddings(batch)
-                embeddings.extend(fallback_embeddings)
-        
-        return embeddings
     
     async def _create_sentence_transformer_embeddings(self, texts: List[str]) -> List[List[float]]:
         """Create embeddings using Sentence Transformers"""
@@ -159,29 +110,11 @@ class EmbeddingService:
     
     def estimate_tokens(self, text: str) -> int:
         """Estimate token count for text"""
-        if self.tokenizer:
-            try:
-                return len(self.tokenizer.encode(text))
-            except:
-                pass
-        
         # Fallback estimation (rough: 1 token ~ 4 characters)
         return max(1, len(text) // 4)
     
     def truncate_text(self, text: str, max_tokens: int = 8191) -> str:
         """Truncate text to fit within token limit"""
-        if self.tokenizer:
-            try:
-                tokens = self.tokenizer.encode(text)
-                if len(tokens) <= max_tokens:
-                    return text
-                
-                # Truncate tokens and decode back
-                truncated_tokens = tokens[:max_tokens]
-                return self.tokenizer.decode(truncated_tokens)
-            except:
-                pass
-        
         # Fallback: truncate by character count
         max_chars = max_tokens * 4  # Rough estimate
         return text[:max_chars] if len(text) > max_chars else text
@@ -220,11 +153,7 @@ class EmbeddingService:
     
     def get_embedding_dimension(self) -> int:
         """Get the dimension of embeddings"""
-        if self.tokenizer:
-            # OpenAI embeddings
-            return 1536 if self.embedding_model in ['text-embedding-3-small', 'text-embedding-ada-002'] else 3072
-        elif self.model:
-            # Sentence transformers
+        if self.model:
             return self.model.get_sentence_embedding_dimension()
         else:
             return 384  # Default for all-MiniLM-L6-v2

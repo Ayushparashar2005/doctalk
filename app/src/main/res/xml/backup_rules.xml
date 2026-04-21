@@ -9,8 +9,4 @@
    <include domain="sharedpref" path="."/>
    <exclude domain="sharedpref" path="device.xml"/>
 -->
-    <!-- Exclude Firebase config files -->
-    <exclude domain="sharedpref" path="com.google.firebase.auth.xml" />
-    <exclude domain="sharedpref" path="com.google.firebase.firestore.xml" />
-    <exclude domain="sharedpref" path="com.google.firebase.storage.xml" />
 </full-backup-content>

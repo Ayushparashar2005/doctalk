@@ -14,7 +14,7 @@ class AuthInterceptor @Inject constructor() : Interceptor {
     override fun intercept(chain: Interceptor.Chain): Response {
         val originalRequest = chain.request()
         
-        // Add headers without Firebase token in local mode
+        // Add only the headers needed by the local backend.
         val localRequest = originalRequest.newBuilder()
             .addHeader("Content-Type", "application/json")
             .build()

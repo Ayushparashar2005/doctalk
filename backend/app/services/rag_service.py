@@ -5,9 +5,10 @@ RAG (Retrieval-Augmented Generation) service for document-based Q&A
 import asyncio
 import logging
 from typing import List, Dict, Any, Optional
-import openai
 import time
 from datetime import datetime
+
+from openai import AsyncOpenAI
 
 from app.core.config import settings
 from app.services.embedding_service import EmbeddingService
@@ -25,11 +26,10 @@ class RAGService:
         self.max_context_chunks = settings.max_context_chunks
         self.rag_temperature = settings.rag_temperature
         self.max_response_tokens = settings.max_response_tokens
-        
-        # Initialize OpenAI for Groq
-        if settings.groq_api_key:
-            openai.api_key = settings.groq_api_key
-            openai.api_base = settings.groq_base_url
+        self.client = AsyncOpenAI(
+            api_key=settings.groq_api_key,
+            base_url=settings.groq_base_url,
+        )
     
     async def retrieve_context(
         self, 
@@ -78,20 +78,20 @@ class RAGService:
             
             # Call Groq API
             start_time = time.time()
-            response = await openai.ChatCompletion.acreate(
+            response = await self.client.chat.completions.create(
                 model=model,
                 messages=messages,
                 temperature=self.rag_temperature,
                 max_tokens=self.max_response_tokens,
                 top_p=1.0,
                 frequency_penalty=0.0,
-                presence_penalty=0.0
+                presence_penalty=0.0,
             )
             
             response_time = (time.time() - start_time) * 1000  # Convert to milliseconds
             
             # Extract response data
-            answer = response.choices[0].message.content
+            answer = response.choices[0].message.content or ""
             tokens_used = response.usage.total_tokens if response.usage else 0
             
             return {

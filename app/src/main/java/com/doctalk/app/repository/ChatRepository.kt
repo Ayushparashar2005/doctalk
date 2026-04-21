@@ -1,12 +1,18 @@
 package com.doctalk.app.repository
 
+import android.content.Context
 import com.doctalk.app.data.local.ChatDao
+import com.doctalk.app.data.model.ChatRequest
+import com.doctalk.app.data.model.ChatResponse
 import com.doctalk.app.data.model.ChatSession
 import com.doctalk.app.data.model.Message
-import com.doctalk.app.data.model.MessageType
 import com.doctalk.app.data.model.MessageMetadata
+import com.doctalk.app.data.model.MessageType
+import com.doctalk.app.network.ApiService
 import com.doctalk.app.network.NetworkResult
-import com.doctalk.app.network.groq.GroqRepository
+import com.doctalk.app.utils.AppPreferences
+import com.doctalk.app.utils.Constants
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
 import java.util.UUID
 import javax.inject.Inject
@@ -17,8 +23,9 @@ import javax.inject.Singleton
  */
 @Singleton
 class ChatRepository @Inject constructor(
+    @ApplicationContext private val context: Context,
     private val chatDao: ChatDao,
-    private val groqRepository: GroqRepository
+    private val apiService: ApiService
 ) {
 
     /**
@@ -101,64 +108,55 @@ class ChatRepository @Inject constructor(
                 ))
             }
 
-            // For fully local, we might want to mock the AI if Groq is considered "external"
-            // But usually users want the LLM. I'll keep Groq but catch errors.
-            val startTime = System.currentTimeMillis()
-            val groqResult = groqRepository.sendRAGChatMessage(
-                message = content,
-                documentContext = emptyList() // Simplified for now
+            val request = ChatRequest(
+                query = content,
+                documentId = documentId,
+                userId = "local_user",
+                sessionId = sessionId,
+                model = AppPreferences.getSelectedGroqModel(context),
+                maxContext = 5
             )
-            
+
+            val startTime = System.currentTimeMillis()
+            val response = apiService.sendChatQuery(request)
             val responseTime = System.currentTimeMillis() - startTime
-            
-            when (groqResult) {
-                is NetworkResult.Success -> {
-                    val chatResponse = groqResult.data
-                    val aiMessage = Message(
-                        id = UUID.randomUUID().toString(),
-                        sessionId = sessionId,
-                        documentId = documentId,
-                        userId = "local_user",
-                        content = chatResponse.answer,
-                        messageType = MessageType.AI,
-                        timestamp = System.currentTimeMillis(),
-                        metadata = MessageMetadata(
-                            contextUsed = chatResponse.context.isNotEmpty(),
-                            responseTime = responseTime,
-                            tokensUsed = chatResponse.tokensUsed,
-                            modelUsed = chatResponse.modelUsed,
-                            confidence = chatResponse.confidence
-                        )
+            val body = response.body()
+
+            if (response.isSuccessful && body?.success == true && body.data != null) {
+                val chatResponse: ChatResponse = body.data
+                val aiMessage = Message(
+                    id = UUID.randomUUID().toString(),
+                    sessionId = sessionId,
+                    documentId = documentId,
+                    userId = "local_user",
+                    content = chatResponse.answer,
+                    messageType = MessageType.AI,
+                    timestamp = System.currentTimeMillis(),
+                    metadata = MessageMetadata(
+                        contextUsed = chatResponse.context.isNotEmpty(),
+                        responseTime = responseTime,
+                        tokensUsed = chatResponse.tokensUsed,
+                        modelUsed = chatResponse.modelUsed.ifBlank { Constants.DEFAULT_GROQ_MODEL },
+                        confidence = chatResponse.confidence
                     )
-                    
-                    chatDao.insertMessage(aiMessage)
-                    
-                    // Update session again
-                    val updatedSession = chatDao.getChatSessions().find { it.id == sessionId }
-                    updatedSession?.let {
-                        chatDao.updateChatSession(it.copy(
+                )
+
+                chatDao.insertMessage(aiMessage)
+
+                val updatedSession = chatDao.getChatSessions().find { it.id == sessionId }
+                updatedSession?.let {
+                    chatDao.updateChatSession(
+                        it.copy(
                             lastMessageAt = aiMessage.timestamp,
                             lastMessagePreview = aiMessage.content.take(50),
                             messageCount = it.messageCount + 1
-                        ))
-                    }
-                    
-                    NetworkResult.success(Pair(userMessage, aiMessage))
-                }
-                else -> {
-                    // Fallback to a local mock response if Groq fails or is disabled
-                    val aiMessage = Message(
-                        id = UUID.randomUUID().toString(),
-                        sessionId = sessionId,
-                        documentId = documentId,
-                        userId = "local_user",
-                        content = "I'm running in local mode. (Groq API error or offline)",
-                        messageType = MessageType.AI,
-                        timestamp = System.currentTimeMillis()
+                        )
                     )
-                    chatDao.insertMessage(aiMessage)
-                    NetworkResult.success(Pair(userMessage, aiMessage))
                 }
+
+                NetworkResult.success(Pair(userMessage, aiMessage))
+            } else {
+                NetworkResult.error(body?.message ?: response.message() ?: "Failed to get a response from the backend")
             }
         } catch (e: Exception) {
             NetworkResult.error(e.message ?: "Failed to send message", e)

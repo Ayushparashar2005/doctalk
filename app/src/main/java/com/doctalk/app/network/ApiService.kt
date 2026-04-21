@@ -3,10 +3,13 @@ package com.doctalk.app.network
 import com.doctalk.app.data.model.ApiResponse
 import com.doctalk.app.data.model.ChatRequest
 import com.doctalk.app.data.model.ChatResponse
+import com.doctalk.app.data.model.DocumentSearchRequest
 import com.doctalk.app.data.model.DocumentProcessRequest
 import com.doctalk.app.data.model.DocumentProcessResponse
 import retrofit2.Response
+import retrofit2.http.DELETE
 import retrofit2.http.Body
+import retrofit2.http.GET
 import retrofit2.http.POST
 import retrofit2.http.Path
 
@@ -30,19 +33,19 @@ interface ApiService {
     /**
      * Gets processing status of a document
      */
-    @POST("documents/{documentId}/status")
+    @GET("documents/{documentId}/status")
     suspend fun getDocumentStatus(@Path("documentId") documentId: String): Response<ApiResponse<String>>
 
     /**
      * Deletes a document from the backend
      */
-    @POST("documents/{documentId}/delete")
+    @DELETE("documents/{documentId}/delete")
     suspend fun deleteDocument(@Path("documentId") documentId: String): Response<ApiResponse<Unit>>
 
     /**
      * Gets document summary
      */
-    @POST("documents/{documentId}/summary")
+    @GET("documents/{documentId}/summary")
     suspend fun getDocumentSummary(@Path("documentId") documentId: String): Response<ApiResponse<String>>
 
     /**
@@ -51,6 +54,6 @@ interface ApiService {
     @POST("documents/{documentId}/search")
     suspend fun searchDocument(
         @Path("documentId") documentId: String,
-        @Body query: Map<String, String>
+        @Body query: DocumentSearchRequest
     ): Response<ApiResponse<List<String>>>
 }

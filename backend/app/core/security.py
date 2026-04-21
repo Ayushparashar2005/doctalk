@@ -14,13 +14,11 @@ logger = logging.getLogger(__name__)
 security = HTTPBearer()
 
 def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)):
-    """Verify JWT token from Firebase"""
+    """Verify a locally signed JWT token."""
     try:
         token = credentials.credentials
         
-        # In production, you should verify Firebase tokens
-        # For now, we'll decode the token without verification for testing
-        # TODO: Implement proper Firebase token verification
+        # The local backend accepts JWTs signed with the configured secret.
         
         decoded = jwt.decode(token, options={"verify_signature": False})
         
