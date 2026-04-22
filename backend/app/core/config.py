@@ -22,6 +22,7 @@ class Settings(BaseSettings):
     
     # Local SQLite storage
     sqlite_db_path: str = "data/doctalk.sqlite3"
+    upload_dir: str = "data/uploads"
     
     # Document Processing
     max_file_size_mb: int = 10

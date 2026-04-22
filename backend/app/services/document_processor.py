@@ -10,6 +10,9 @@ import logging
 from pathlib import Path
 import tempfile
 import os
+from urllib.parse import urlparse, unquote
+from zipfile import ZipFile
+from xml.etree import ElementTree as ET
 from PyPDF2 import PdfReader
 from PyPDF2 import PdfWriter
 import pypdf
@@ -60,14 +63,15 @@ class DocumentProcessor:
         file_type: DocumentType,
         download_url: str
     ) -> DocumentMetadata:
-        """Process a document from download URL"""
+        """Process a document from download URL or local file URL."""
         
         start_time = datetime.utcnow()
         logger.info(f"Processing document {document_id} for user {user_id}")
+        temp_file_path: Optional[str] = None
         
         try:
-            # Download file
-            file_path = await self._download_file(download_url, file_name)
+            # Resolve local file path or download a remote file.
+            file_path, temp_file_path = await self._resolve_source_file(download_url, file_name)
             
             # Extract text and metadata
             text, metadata = await self._extract_text(file_path, file_type)
@@ -99,8 +103,9 @@ class DocumentProcessor:
                 }
             )
             
-            # Clean up temporary file
-            os.unlink(file_path)
+            # Clean up temporary download only. Persisted local uploads are retained.
+            if temp_file_path and os.path.exists(temp_file_path):
+                os.unlink(temp_file_path)
             
             processing_time = (datetime.utcnow() - start_time).total_seconds()
             logger.info(f"Document {document_id} processed in {processing_time:.2f}s")
@@ -109,6 +114,8 @@ class DocumentProcessor:
             
         except Exception as e:
             logger.error(f"Failed to process document {document_id}: {e}")
+            if temp_file_path and os.path.exists(temp_file_path):
+                os.unlink(temp_file_path)
             return DocumentMetadata(
                 document_id=document_id,
                 user_id=user_id,
@@ -120,6 +127,46 @@ class DocumentProcessor:
                 uploaded_at=start_time,
                 error_message=str(e)
             )
+
+    async def process_local_document(
+        self,
+        document_id: str,
+        user_id: str,
+        file_name: str,
+        file_type: DocumentType,
+        file_path: str,
+    ) -> DocumentMetadata:
+        """Process a document that has already been saved locally."""
+        return await self.process_document(
+            document_id=document_id,
+            user_id=user_id,
+            file_name=file_name,
+            file_type=file_type,
+            download_url=f"file:///{Path(file_path).resolve().as_posix()}",
+        )
+
+    async def _resolve_source_file(self, source: str, filename: str) -> Tuple[str, Optional[str]]:
+        """Return (file_path, temp_download_path_if_any)."""
+        parsed = urlparse(source)
+        scheme = parsed.scheme.lower()
+
+        if scheme in ("http", "https"):
+            downloaded = await self._download_file(source, filename)
+            return downloaded, downloaded
+
+        if scheme == "file":
+            raw_path = unquote(parsed.path or "")
+            if os.name == "nt" and raw_path.startswith("/") and len(raw_path) > 2 and raw_path[2] == ":":
+                raw_path = raw_path[1:]
+            file_path = raw_path or unquote(source.replace("file://", "", 1))
+        else:
+            file_path = source
+
+        file_path = os.path.normpath(file_path)
+        if not os.path.exists(file_path):
+            raise FileNotFoundError(f"File not found at path: {file_path}")
+
+        return file_path, None
     
     async def _download_file(self, url: str, filename: str) -> str:
         """Download file from URL to temporary location"""
@@ -146,8 +193,37 @@ class DocumentProcessor:
             return await self._extract_pdf_text(file_path)
         elif file_type == DocumentType.TXT:
             return await self._extract_txt_text(file_path)
+        elif file_type == DocumentType.DOCX:
+            return await self._extract_docx_text(file_path)
         else:
             raise ValueError(f"Unsupported file type: {file_type}")
+
+    async def _extract_docx_text(self, file_path: str) -> Tuple[str, Dict[str, Any]]:
+        """Extract text from DOCX using only stdlib XML/ZIP parsing."""
+        try:
+            with ZipFile(file_path) as docx_zip:
+                with docx_zip.open("word/document.xml") as xml_file:
+                    xml_content = xml_file.read()
+
+            root = ET.fromstring(xml_content)
+            namespace = {"w": "http://schemas.openxmlformats.org/wordprocessingml/2006/main"}
+
+            paragraphs: List[str] = []
+            for paragraph in root.findall(".//w:p", namespace):
+                parts = [node.text for node in paragraph.findall(".//w:t", namespace) if node.text]
+                text = "".join(parts).strip()
+                if text:
+                    paragraphs.append(text)
+
+            full_text = "\n\n".join(paragraphs)
+            metadata = {
+                "paragraph_count": len(paragraphs),
+                "page_count": None,
+            }
+            return full_text, metadata
+        except Exception as e:
+            logger.error(f"Failed to extract text from DOCX file: {e}")
+            raise
     
     async def _extract_pdf_text(self, file_path: str) -> Tuple[str, Dict[str, Any]]:
         """Extract text from PDF file"""

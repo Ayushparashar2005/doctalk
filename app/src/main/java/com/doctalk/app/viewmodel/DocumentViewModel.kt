@@ -89,8 +89,8 @@ class DocumentViewModel @Inject constructor(
             return
         }
 
-        if (!listOf("pdf", "txt").contains(fileType.lowercase())) {
-            _errorMessage.value = "Only PDF and TXT files are supported"
+        if (!listOf("pdf", "txt", "docx").contains(fileType.lowercase())) {
+            _errorMessage.value = "Only PDF, DOCX, and TXT files are supported"
             return
         }
 

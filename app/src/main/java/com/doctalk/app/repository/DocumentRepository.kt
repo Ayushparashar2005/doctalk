@@ -3,10 +3,15 @@ package com.doctalk.app.repository
 import com.doctalk.app.data.local.DocumentDao
 import com.doctalk.app.data.model.Document
 import com.doctalk.app.data.model.DocumentStatus
+import com.doctalk.app.network.ApiService
 import com.doctalk.app.network.NetworkResult
 import kotlinx.coroutines.flow.Flow
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.MultipartBody
+import okhttp3.RequestBody.Companion.asRequestBody
+import okhttp3.RequestBody.Companion.toRequestBody
 import java.io.File
-import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -15,7 +20,8 @@ import javax.inject.Singleton
  */
 @Singleton
 class DocumentRepository @Inject constructor(
-    private val documentDao: DocumentDao
+    private val documentDao: DocumentDao,
+    private val apiService: ApiService
 ) {
 
     /**
@@ -43,20 +49,34 @@ class DocumentRepository @Inject constructor(
         fileType: String
     ): NetworkResult<Document> {
         return try {
-            val documentId = UUID.randomUUID().toString()
-            
-            // In local mode, we just record the file info
+            val fileBody = file.asRequestBody("application/octet-stream".toMediaTypeOrNull())
+            val filePart = MultipartBody.Part.createFormData("file", fileName, fileBody)
+            val userIdPart = "local_user".toRequestBody("text/plain".toMediaType())
+
+            val response = apiService.uploadDocument(filePart, userIdPart)
+            if (!response.isSuccessful || response.body() == null) {
+                val errorBody = response.errorBody()?.string()?.takeIf { it.isNotBlank() }
+                return NetworkResult.error(errorBody ?: "Upload failed with code ${response.code()}")
+            }
+
+            val uploadResponse = response.body()!!
+            val status = try {
+                DocumentStatus.valueOf(uploadResponse.status.uppercase())
+            } catch (_: IllegalArgumentException) {
+                DocumentStatus.PROCESSING
+            }
+
             val document = Document(
-                id = documentId,
+                id = uploadResponse.documentId,
                 userId = "local_user",
                 fileName = fileName,
                 fileType = fileType,
                 fileSize = file.length(),
-                downloadUrl = file.absolutePath, // Local path
-                storagePath = file.absolutePath,
-                status = DocumentStatus.PROCESSED // Mark as processed immediately in local mode
+                downloadUrl = "",
+                storagePath = "",
+                status = status
             )
-            
+
             documentDao.insertDocument(document)
             NetworkResult.success(document)
         } catch (e: Exception) {

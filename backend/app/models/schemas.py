@@ -17,6 +17,7 @@ class DocumentStatus(str, Enum):
 class DocumentType(str, Enum):
     PDF = "pdf"
     TXT = "txt"
+    DOCX = "docx"
 
 # Request Models
 class DocumentProcessRequest(BaseModel):

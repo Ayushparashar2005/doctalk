@@ -1,6 +1,7 @@
 package com.doctalk.app.presentation.screens.upload
 
 import android.net.Uri
+import android.provider.OpenableColumns
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
@@ -78,11 +79,12 @@ fun UploadScreen(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
         uri?.let {
-            val file = createFileFromUri(context, it)
+            val originalName = getFileNameFromUri(context, it)
+            val file = createFileFromUri(context, it, originalName)
             file?.let {
                 selectedFile = it
-                selectedFileName = it.name
-                selectedFileType = getFileType(it.name)
+                selectedFileName = originalName
+                selectedFileType = getFileType(originalName)
             }
         }
     }
@@ -91,8 +93,8 @@ fun UploadScreen(
     LaunchedEffect(successMessage) {
         if (successMessage != null) {
             // Navigate to chat after successful upload
-            selectedFile?.let { file ->
-                onNavigateToChat("temp_id", file.name)
+            selectedFile?.let {
+                onNavigateToChat("temp_id", selectedFileName)
             }
         }
     }
@@ -240,7 +242,7 @@ fun UploadScreen(
                     DocTalkButton(
                         text = if (isLoading) "Uploading..." else "Upload Document",
                         onClick = {
-                            documentViewModel.uploadDocument(file, file.name, selectedFileType)
+                            documentViewModel.uploadDocument(file, selectedFileName, selectedFileType)
                         },
                         modifier = Modifier.fillMaxWidth(),
                         enabled = !isLoading
@@ -311,12 +313,17 @@ fun UploadScreen(
 /**
  * Creates a temporary file from URI
  */
-private fun createFileFromUri(context: android.content.Context, uri: Uri): File? {
+private fun createFileFromUri(context: android.content.Context, uri: Uri, originalName: String): File? {
     return try {
         val contentResolver = context.contentResolver
         val inputStream = contentResolver.openInputStream(uri) ?: return null
-        
-        val tempFile = File(context.cacheDir, "temp_file_${System.currentTimeMillis()}")
+
+        val extension = originalName.substringAfterLast('.', "").takeIf { it.isNotBlank() }
+        val tempFile = if (extension != null) {
+            File(context.cacheDir, "upload_${System.currentTimeMillis()}.$extension")
+        } else {
+            File(context.cacheDir, "upload_${System.currentTimeMillis()}")
+        }
         val outputStream = FileOutputStream(tempFile)
         
         inputStream.use { input ->
@@ -333,12 +340,34 @@ private fun createFileFromUri(context: android.content.Context, uri: Uri): File?
 }
 
 /**
+ * Reads display name from content URI.
+ */
+private fun getFileNameFromUri(context: android.content.Context, uri: Uri): String {
+    val defaultName = "document_${System.currentTimeMillis()}"
+
+    if (uri.scheme == "content") {
+        context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
+            val nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+            if (nameIndex != -1 && cursor.moveToFirst()) {
+                val value = cursor.getString(nameIndex)
+                if (!value.isNullOrBlank()) {
+                    return value
+                }
+            }
+        }
+    }
+
+    return uri.lastPathSegment?.substringAfterLast('/') ?: defaultName
+}
+
+/**
  * Gets file type from file name
  */
 private fun getFileType(fileName: String): String {
     return when {
         fileName.lowercase().endsWith(".pdf") -> "pdf"
         fileName.lowercase().endsWith(".txt") -> "txt"
+        fileName.lowercase().endsWith(".docx") -> "docx"
         else -> "unknown"
     }
 }

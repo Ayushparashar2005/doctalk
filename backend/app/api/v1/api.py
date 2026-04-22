@@ -5,15 +5,21 @@ Main API router for DocTalk RAG Backend
 from __future__ import annotations
 
 import logging
+import re
+import shutil
+import uuid
 from datetime import datetime
+from pathlib import Path
 
-from fastapi import APIRouter, BackgroundTasks, HTTPException
+from fastapi import APIRouter, BackgroundTasks, File, Form, HTTPException, UploadFile
 
+from app.core.config import settings
 from app.core.local_database import local_database
 from app.models.schemas import (
     BaseResponse,
     ChatRequest,
     ChatResponse,
+    DocumentType,
     DocumentProcessRequest,
     DocumentProcessResponse,
     DocumentSearchRequest,
@@ -37,6 +43,22 @@ vector_store = VectorStore()
 rag_service = RAGService(embedding_service, vector_store)
 
 
+def _safe_filename(filename: str) -> str:
+    cleaned = re.sub(r"[^A-Za-z0-9._-]", "_", filename)
+    return cleaned or f"upload_{uuid.uuid4().hex}"
+
+
+def _infer_file_type(filename: str) -> str:
+    suffix = Path(filename).suffix.lower()
+    if suffix == ".pdf":
+        return "pdf"
+    if suffix == ".txt":
+        return "txt"
+    if suffix == ".docx":
+        return "docx"
+    raise HTTPException(status_code=400, detail="Unsupported file type. Allowed: pdf, txt, docx")
+
+
 async def get_rag_service():
     global rag_service, vector_store
     if rag_service is None:
@@ -53,6 +75,94 @@ async def get_vector_store():
         vector_store = VectorStore()
         await vector_store.init_connection()
     return vector_store
+
+
+@api_router.post("/documents/upload", response_model=DocumentProcessResponse)
+async def upload_document(
+    background_tasks: BackgroundTasks,
+    file: UploadFile = File(...),
+    user_id: str = Form("local_user"),
+):
+    """Upload a file to local storage, then process it in the background for RAG."""
+    try:
+        original_name = file.filename or f"upload_{uuid.uuid4().hex}"
+        file_type_value = _infer_file_type(original_name)
+        file_type = DocumentType(file_type_value)
+
+        document_id = str(uuid.uuid4())
+        safe_name = _safe_filename(original_name)
+        upload_root = Path(settings.upload_dir)
+        if not upload_root.is_absolute():
+            upload_root = Path(__file__).resolve().parents[3] / upload_root
+
+        target_dir = upload_root / document_id
+        target_dir.mkdir(parents=True, exist_ok=True)
+        stored_path = target_dir / safe_name
+
+        with stored_path.open("wb") as out_file:
+            shutil.copyfileobj(file.file, out_file)
+
+        file_size = stored_path.stat().st_size
+        await local_database.upsert_document(
+            {
+                "document_id": document_id,
+                "user_id": user_id,
+                "file_name": original_name,
+                "file_type": file_type.value,
+                "file_size": file_size,
+                "download_url": str(stored_path.resolve()),
+                "status": DocumentStatus.UPLOADING.value,
+                "uploaded_at": datetime.utcnow().isoformat(),
+                "metadata": {
+                    "original_file_name": original_name,
+                    "stored_file_name": safe_name,
+                    "storage_path": str(stored_path.resolve()),
+                },
+            }
+        )
+
+        background_tasks.add_task(
+            process_uploaded_document_background,
+            document_id,
+            user_id,
+            original_name,
+            file_type,
+            str(stored_path.resolve()),
+        )
+
+        return DocumentProcessResponse(
+            success=True,
+            message="File uploaded successfully. Processing started.",
+            document_id=document_id,
+            status=DocumentStatus.PROCESSING,
+        )
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.error("Document upload failed: %s", exc)
+        raise HTTPException(status_code=500, detail=str(exc))
+    finally:
+        await file.close()
+
+
+async def process_uploaded_document_background(
+    document_id: str,
+    user_id: str,
+    file_name: str,
+    file_type: DocumentType,
+    stored_path: str,
+):
+    """Background worker: convert uploaded file to RAG chunks/embeddings."""
+    await local_database.update_document_status(document_id, DocumentStatus.PROCESSING.value)
+
+    request = DocumentProcessRequest(
+        document_id=document_id,
+        user_id=user_id,
+        file_name=file_name,
+        file_type=file_type,
+        download_url=stored_path,
+    )
+    await process_document_background(request)
 
 
 @api_router.post("/documents/process", response_model=DocumentProcessResponse)

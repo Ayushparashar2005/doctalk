@@ -17,8 +17,9 @@ object Constants {
     // File Upload Limits
     const val MAX_FILE_SIZE = 10 * 1024 * 1024L // 10MB in bytes
     const val SUPPORTED_PDF_MIME_TYPE = "application/pdf"
+    const val SUPPORTED_DOCX_MIME_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
     const val SUPPORTED_TEXT_MIME_TYPE = "text/plain"
-    val SUPPORTED_MIME_TYPES = listOf(SUPPORTED_PDF_MIME_TYPE, SUPPORTED_TEXT_MIME_TYPE)
+    val SUPPORTED_MIME_TYPES = listOf(SUPPORTED_PDF_MIME_TYPE, SUPPORTED_DOCX_MIME_TYPE, SUPPORTED_TEXT_MIME_TYPE)
     
     // Chat Configuration
     const val MAX_MESSAGE_LENGTH = 4000
@@ -34,7 +35,7 @@ object Constants {
     const val ERROR_NETWORK = "Network error. Please check your connection."
     const val ERROR_AUTHENTICATION = "Authentication failed. Please sign in again."
     const val ERROR_FILE_TOO_LARGE = "File size exceeds the maximum limit of 10MB."
-    const val ERROR_UNSUPPORTED_FILE_TYPE = "Unsupported file type. Please upload PDF or TXT files."
+    const val ERROR_UNSUPPORTED_FILE_TYPE = "Unsupported file type. Please upload PDF, DOCX, or TXT files."
     const val ERROR_DOCUMENT_PROCESSING = "Document processing failed. Please try again."
     const val ERROR_UPLOAD_FAILED = "Upload failed. Please try again."
     const val ERROR_CHAT_FAILED = "Failed to send message. Please try again."
