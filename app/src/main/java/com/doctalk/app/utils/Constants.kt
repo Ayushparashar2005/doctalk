@@ -6,7 +6,7 @@ package com.doctalk.app.utils
 object Constants {
     
     // API Configuration
-    const val BASE_URL = "http://10.0.2.2:8001/api/"
+    const val BASE_URL = "http://10.0.2.2:8001/api/v1/"
     const val API_TIMEOUT = 30_000L // 30 seconds
     
     // Groq API Configuration
