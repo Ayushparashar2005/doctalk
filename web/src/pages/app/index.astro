@@ -1,0 +1,14 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import WorkspaceDashboard from '../../components/islands/WorkspaceDashboard';
+---
+
+<BaseLayout
+  title="DocTalk Workspace"
+  description="Dashboard for uploads, processing status, and quick access to Groq-ready documents."
+  currentPath="/app"
+>
+  <div class="container app-frame">
+    <WorkspaceDashboard client:load />
+  </div>
+</BaseLayout>

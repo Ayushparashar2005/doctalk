@@ -1,0 +1,19 @@
+---
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+import DocumentWorkspace from '../../../components/islands/DocumentWorkspace';
+
+export const prerender = false;
+
+const documentId = Astro.params.id ?? '';
+---
+
+<BaseLayout
+  title="Document | DocTalk"
+  description="Dynamic document workspace with local storage and browser-based RAG chat."
+  currentPath="/app"
+  hideChrome={true}
+>
+  <div class="document-page-shell">
+    <DocumentWorkspace client:load documentId={documentId} />
+  </div>
+</BaseLayout>

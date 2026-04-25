@@ -1,0 +1,14 @@
+---
+import type { DocumentStatus } from '@/data/documents';
+
+const { status } = Astro.props as { status: DocumentStatus };
+
+const labels: Record<DocumentStatus, string> = {
+  processed: 'Processed',
+  processing: 'Processing',
+  failed: 'Failed',
+  queued: 'Queued'
+};
+---
+
+<span class={`badge badge--${status}`}>{labels[status]}</span>

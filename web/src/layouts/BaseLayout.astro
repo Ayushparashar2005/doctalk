@@ -1,0 +1,48 @@
+---
+import '../styles/global.css';
+import SiteHeader from '../components/SiteHeader.astro';
+
+const {
+  title = 'DocTalk',
+  description = 'DocTalk turns uploaded documents into searchable, conversational workspaces.',
+  currentPath = '/',
+  hideChrome = false
+} = Astro.props;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content={description} />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <title>{title}</title>
+  </head>
+  <body class={hideChrome ? 'workspace-page' : undefined}>
+    {!hideChrome ? <SiteHeader currentPath={currentPath} /> : null}
+    <main>
+      <slot />
+    </main>
+    {!hideChrome ? (
+      <footer class="footer">
+        <div class="container">
+          <div class="panel">
+            <div class="panel__inner app-toolbar">
+              <div>
+                <strong>DocTalk</strong>
+                <div class="muted">Astro front end with Cloudflare deployment and SSR-backed document routes.</div>
+              </div>
+              <div class="pill-row">
+                <span class="pill">Astro</span>
+                <span class="pill">Cloudflare Pages</span>
+                <span class="pill">Cloudflare Workers</span>
+                <span class="pill">SSR islands</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </footer>
+    ) : null}
+  </body>
+</html>

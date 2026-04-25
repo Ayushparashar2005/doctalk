@@ -1,0 +1,69 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+---
+
+<BaseLayout
+  title="Settings | DocTalk"
+  description="Workspace settings for the DocTalk web app."
+  currentPath="/app/settings"
+>
+  <div class="container app-frame">
+    <section class="panel">
+      <div class="panel__inner app-toolbar">
+        <div>
+          <p class="kicker">Settings</p>
+          <h1 class="h2">Workspace settings</h1>
+          <p class="muted" style="max-width: 72ch; line-height: 1.7; margin-bottom: 0;">
+            This project no longer depends on a separate backend directory. Documents and chat history
+            are stored in your browser, while AI responses are routed through the web project.
+          </p>
+        </div>
+        <a class="button button--secondary" href="/app">Back to dashboard</a>
+      </div>
+    </section>
+
+    <section class="grid grid--2">
+      <article class="card">
+        <div class="card__inner stack">
+          <p class="kicker">Storage</p>
+          <h3 class="h3">Where data lives</h3>
+          <div class="list">
+            <div class="metric">
+              <span class="metric__label">Documents</span>
+              <span class="metric__hint">Saved in browser localStorage after upload.</span>
+            </div>
+            <div class="metric">
+              <span class="metric__label">Chat history</span>
+              <span class="metric__hint">Stored per document in the same browser.</span>
+            </div>
+            <div class="metric">
+              <span class="metric__label">AI processing</span>
+              <span class="metric__hint">Runs through the server-side Groq routes with local fallback.</span>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <article class="card">
+        <div class="card__inner stack">
+          <p class="kicker">Workflow</p>
+          <h3 class="h3">What to do next</h3>
+          <div class="list">
+            <div class="metric">
+              <span class="metric__label">1. Upload</span>
+              <span class="metric__hint">Go to the upload page and add a PDF or TXT file.</span>
+            </div>
+            <div class="metric">
+              <span class="metric__label">2. Open</span>
+              <span class="metric__hint">Open the document page after processing completes.</span>
+            </div>
+            <div class="metric">
+              <span class="metric__label">3. Ask</span>
+              <span class="metric__hint">Ask questions from that document using the built-in Groq-backed chat route.</span>
+            </div>
+          </div>
+        </div>
+      </article>
+    </section>
+  </div>
+</BaseLayout>

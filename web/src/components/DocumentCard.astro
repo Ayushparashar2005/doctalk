@@ -1,0 +1,47 @@
+---
+import StatusBadge from './StatusBadge.astro';
+import type { DocumentRecord } from '@/data/documents';
+import { formatDocumentDate } from '@/data/documents';
+
+const { document } = Astro.props as { document: DocumentRecord };
+---
+
+<article class="card">
+  <div class="card__inner">
+    <div class="card__header">
+      <div class="stack">
+        <p class="kicker">{document.fileType}</p>
+        <h3 class="h3">{document.title}</h3>
+      </div>
+      <StatusBadge status={document.status} />
+    </div>
+
+    <p class="muted" style="line-height: 1.7; margin: 0 0 16px;">{document.summary}</p>
+
+    <div class="grid" style="grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-bottom: 16px;">
+      <div class="metric" style="padding: 14px;">
+        <span class="metric__label">Pages</span>
+        <strong class="metric__value" style="font-size: 1.5rem;">{document.pages}</strong>
+      </div>
+      <div class="metric" style="padding: 14px;">
+        <span class="metric__label">Words</span>
+        <strong class="metric__value" style="font-size: 1.5rem;">{document.words.toLocaleString('en')}</strong>
+      </div>
+      <div class="metric" style="padding: 14px;">
+        <span class="metric__label">Updated</span>
+        <strong class="metric__value" style="font-size: 1.05rem; line-height: 1.15;">{formatDocumentDate(document.updatedAt)}</strong>
+      </div>
+    </div>
+
+    <div class="pill-row" style="margin-bottom: 18px;">
+      {document.tags.map((tag) => <span class="pill">{tag}</span>)}
+    </div>
+
+    <div class="app-toolbar">
+      <div class="muted">Owner: {document.owner}</div>
+      <a class="button button--secondary" href={`/app/documents/${document.id}`}>
+        Open document
+      </a>
+    </div>
+  </div>
+</article>

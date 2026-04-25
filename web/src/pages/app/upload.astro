@@ -1,0 +1,57 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import UploadPanel from '../../components/islands/UploadPanel';
+---
+
+<BaseLayout
+  title="Upload a document | DocTalk"
+  description="Queue PDFs, TXT files, and DOCX files for the document processing pipeline."
+  currentPath="/app/upload"
+>
+  <div class="container app-frame">
+    <section class="panel">
+      <div class="panel__inner app-toolbar">
+        <div>
+          <p class="kicker">Upload</p>
+          <h1 class="h2">Bring a document into the workspace</h1>
+          <p class="muted" style="max-width: 70ch; line-height: 1.7; margin-bottom: 0;">
+            The browser upload flow reads a PDF, TXT, or DOCX file, extracts the text locally, sends it to Groq for analysis, stores it in the browser, and routes straight into chat.
+          </p>
+        </div>
+        <a class="button button--secondary" href="/app">Back to dashboard</a>
+      </div>
+    </section>
+
+    <UploadPanel client:load />
+
+    <section class="grid grid--3">
+      <article class="card">
+        <div class="card__inner stack">
+          <p class="kicker">Supported files</p>
+          <h3 class="h3">PDF, TXT, and DOCX</h3>
+          <p class="muted" style="line-height: 1.7; margin: 0;">
+            PDF, TXT, and DOCX are handled directly in the browser, so the front end stays intentionally narrow here.
+          </p>
+        </div>
+      </article>
+      <article class="card">
+        <div class="card__inner stack">
+          <p class="kicker">Processing states</p>
+          <h3 class="h3">Queued, processing, processed, failed</h3>
+          <p class="muted" style="line-height: 1.7; margin: 0;">
+            Those states match the Android model and are surfaced all the way through the dashboard.
+          </p>
+        </div>
+      </article>
+      <article class="card">
+        <div class="card__inner stack">
+          <p class="kicker">Production handoff</p>
+          <h3 class="h3">Cloud handoff and analysis</h3>
+          <p class="muted" style="line-height: 1.7; margin: 0;">
+            The uploaded file is parsed locally and saved to browser storage after the text is analyzed by the server route.
+          </p>
+        </div>
+      </article>
+    </section>
+  </div>
+</BaseLayout>

@@ -1,0 +1,76 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+---
+
+<BaseLayout
+  title="DocTalk | Document intelligence workspace"
+  description="Upload a document, then ask questions about it with Groq-backed document chat."
+  currentPath="/"
+>
+  <div class="container">
+    <section class="hero">
+      <div>
+        <div class="hero__eyebrow">DocTalk</div>
+        <h1 class="hero__title">Upload a document, then chat with it.</h1>
+        <p class="hero__copy">
+          DocTalk is a document workspace with browser-side extraction and Groq-backed answers. Upload a document, let the app process it, then ask questions directly from that document.
+        </p>
+        <div class="hero__actions">
+          <a class="button button--primary" href="/app/upload">Upload a document</a>
+          <a class="button button--secondary" href="/app">Open workspace</a>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel__inner stack">
+          <p class="kicker">What happens next</p>
+          <div class="metric">
+            <span class="metric__label">Step 1</span>
+            <span class="metric__hint">Upload a PDF or TXT file from the upload page.</span>
+          </div>
+          <div class="metric">
+            <span class="metric__label">Step 2</span>
+            <span class="metric__hint">The browser extracts text, builds chunks, and sends the document to the Groq analysis route.</span>
+          </div>
+          <div class="metric">
+            <span class="metric__label">Step 3</span>
+            <span class="metric__hint">Open the document and ask questions from the indexed content using Groq-backed chat.</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="panel">
+        <div class="panel__inner stack">
+          <p class="kicker">How it works</p>
+          <h2 class="h2">A simple document-to-answer flow</h2>
+          <div class="grid grid--3">
+            <article class="card">
+              <div class="card__inner stack">
+                <h3 class="h3">Upload</h3>
+                <p class="muted" style="line-height: 1.7; margin: 0;">Add a document on the upload page and send it into the workspace.</p>
+              </div>
+            </article>
+            <article class="card">
+              <div class="card__inner stack">
+                <h3 class="h3">Index</h3>
+                <p class="muted" style="line-height: 1.7; margin: 0;">The browser processes the file, then the server route produces the document summary and highlights.</p>
+              </div>
+            </article>
+            <article class="card">
+              <div class="card__inner stack">
+                <h3 class="h3">Ask</h3>
+                <p class="muted" style="line-height: 1.7; margin: 0;">Open the document and ask questions from that document through the Groq-backed chat route.</p>
+              </div>
+            </article>
+          </div>
+          <div class="app-toolbar">
+            <div class="muted">The rest of the site is handled on the app pages.</div>
+            <a class="button button--primary" href="/app/upload">Go to upload</a>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+</BaseLayout>

@@ -1,0 +1,13 @@
+.astro/
+dist/
+.wrangler/
+node_modules/
+
+.env
+.env.*
+
+*.log
+*.tsbuildinfo
+html/
+
+.DS_Store
