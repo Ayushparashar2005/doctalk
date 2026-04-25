@@ -11,6 +11,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -74,7 +75,10 @@ class HomeViewModel @Inject constructor(
                 }
                 
                 if (processingDocs.isNotEmpty()) {
-                    pollProcessingDocuments(processingDocs)
+                    startProcessingPoller()
+                } else {
+                    pollingJob?.cancel()
+                    pollingJob = null
                 }
             }
         }
@@ -82,13 +86,27 @@ class HomeViewModel @Inject constructor(
 
     private var pollingJob: kotlinx.coroutines.Job? = null
 
-    private fun pollProcessingDocuments(processingDocs: List<Document>) {
-        pollingJob?.cancel()
+    private fun startProcessingPoller() {
+        if (pollingJob?.isActive == true) return
+
         pollingJob = viewModelScope.launch {
-            kotlinx.coroutines.delay(3000) // Poll every 3 seconds
-            processingDocs.forEach { doc ->
-                documentRepository.checkAndUpdateDocumentStatus(doc.id)
+            while (isActive) {
+                val processingDocs = _documents.value.filter {
+                    it.status == DocumentStatus.UPLOADING || it.status == DocumentStatus.PROCESSING
+                }
+
+                if (processingDocs.isEmpty()) {
+                    break
+                }
+
+                processingDocs.forEach { doc ->
+                    documentRepository.checkAndUpdateDocumentStatus(doc.id)
+                }
+
+                kotlinx.coroutines.delay(3000) // Poll every 3 seconds
             }
+
+            pollingJob = null
         }
     }
 

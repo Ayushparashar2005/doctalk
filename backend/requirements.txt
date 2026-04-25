@@ -6,6 +6,7 @@ python-jose[cryptography]
 passlib[bcrypt]
 python-dotenv
 httpx
+aiohttp
 pypdf2
 pypdf
 openai

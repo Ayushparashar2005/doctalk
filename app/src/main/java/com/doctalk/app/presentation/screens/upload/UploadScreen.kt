@@ -68,6 +68,7 @@ fun UploadScreen(
     val uploadProgress by documentViewModel.uploadProgress.collectAsState()
     val errorMessage by documentViewModel.errorMessage.collectAsState()
     val successMessage by documentViewModel.successMessage.collectAsState()
+    val lastUploadedDocumentId by documentViewModel.lastUploadedDocumentId.collectAsState()
     
     var selectedFile by remember { mutableStateOf<File?>(null) }
     var selectedFileName by remember { mutableStateOf("") }
@@ -93,8 +94,9 @@ fun UploadScreen(
     LaunchedEffect(successMessage) {
         if (successMessage != null) {
             // Navigate to chat after successful upload
-            selectedFile?.let {
-                onNavigateToChat("temp_id", selectedFileName)
+            lastUploadedDocumentId?.let { documentId ->
+                onNavigateToChat(documentId, selectedFileName)
+                documentViewModel.clearLastUploadedDocumentId()
             }
         }
     }

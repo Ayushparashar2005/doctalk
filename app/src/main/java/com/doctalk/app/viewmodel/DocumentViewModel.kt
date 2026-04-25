@@ -40,6 +40,9 @@ class DocumentViewModel @Inject constructor(
     private val _successMessage = MutableStateFlow<String?>(null)
     val successMessage: StateFlow<String?> = _successMessage.asStateFlow()
 
+    private val _lastUploadedDocumentId = MutableStateFlow<String?>(null)
+    val lastUploadedDocumentId: StateFlow<String?> = _lastUploadedDocumentId.asStateFlow()
+
     init {
         loadDocuments()
         observeDocuments()
@@ -97,10 +100,13 @@ class DocumentViewModel @Inject constructor(
         viewModelScope.launch {
             _isLoading.value = true
             _errorMessage.value = null
+            _successMessage.value = null
+            _lastUploadedDocumentId.value = null
             _uploadProgress.value = 0f
             
             when (val result = documentRepository.uploadDocument(file, fileName, fileType)) {
                 is NetworkResult.Success -> {
+                    _lastUploadedDocumentId.value = result.data.id
                     _successMessage.value = "Document uploaded successfully"
                     _uploadProgress.value = 1f
                     // Documents will be updated via the flow observer
@@ -275,6 +281,13 @@ class DocumentViewModel @Inject constructor(
      */
     fun clearSuccessMessage() {
         _successMessage.value = null
+    }
+
+    /**
+     * Clears the last uploaded document ID after navigation.
+     */
+    fun clearLastUploadedDocumentId() {
+        _lastUploadedDocumentId.value = null
     }
 
     /**

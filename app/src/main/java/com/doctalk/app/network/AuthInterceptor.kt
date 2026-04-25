@@ -14,11 +14,6 @@ class AuthInterceptor @Inject constructor() : Interceptor {
     override fun intercept(chain: Interceptor.Chain): Response {
         val originalRequest = chain.request()
         
-        // Add only the headers needed by the local backend.
-        val localRequest = originalRequest.newBuilder()
-            .addHeader("Content-Type", "application/json")
-            .build()
-        
-        return chain.proceed(localRequest)
+        return chain.proceed(originalRequest)
     }
 }

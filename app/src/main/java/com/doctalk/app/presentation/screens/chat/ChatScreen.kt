@@ -74,7 +74,8 @@ fun ChatScreen(
     
     // Initialize chat session when screen loads
     LaunchedEffect(documentId) {
-        if (chatViewModel.selectedSession.value == null) {
+        val selectedSession = chatViewModel.selectedSession.value
+        if (selectedSession == null || selectedSession.documentId != documentId) {
             chatViewModel.createChatSession(documentId, documentName)
         }
     }

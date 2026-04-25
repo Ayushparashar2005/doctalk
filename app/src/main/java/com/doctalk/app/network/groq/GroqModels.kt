@@ -84,22 +84,22 @@ data class GroqUsage(
  * Groq model constants
  */
 object GroqModels {
-    const val LLAMA3_8B_8192 = "llama3-8b-8192"
-    const val LLAMA3_70B_8192 = "llama3-70b-8192"
+    const val LLAMA31_8B_INSTANT = "llama-3.1-8b-instant"
+    const val LLAMA33_70B_VERSATILE = "llama-3.3-70b-versatile"
     const val MIXTRAL_8X7B_INSTRUCT = "mixtral-8x7b-32768"
     const val GEMMA_7B_INSTRUCT = "gemma-7b-it"
     
     val ALL_MODELS = listOf(
-        LLAMA3_8B_8192,
-        LLAMA3_70B_8192,
+        LLAMA31_8B_INSTANT,
+        LLAMA33_70B_VERSATILE,
         MIXTRAL_8X7B_INSTRUCT,
         GEMMA_7B_INSTRUCT
     )
     
     fun getModelDisplayName(model: String): String {
         return when (model) {
-            LLAMA3_8B_8192 -> "Llama 3 8B"
-            LLAMA3_70B_8192 -> "Llama 3 70B"
+            LLAMA31_8B_INSTANT -> "Llama 3.1 8B Instant"
+            LLAMA33_70B_VERSATILE -> "Llama 3.3 70B Versatile"
             MIXTRAL_8X7B_INSTRUCT -> "Mixtral 8x7B"
             GEMMA_7B_INSTRUCT -> "Gemma 7B"
             else -> model
@@ -112,7 +112,7 @@ object GroqModels {
  */
 object GroqConfig {
     const val BASE_URL = "https://api.groq.com/openai/v1/"
-    const val DEFAULT_MODEL = GroqModels.LLAMA3_8B_8192
+    const val DEFAULT_MODEL = GroqModels.LLAMA31_8B_INSTANT
     const val DEFAULT_MAX_TOKENS = 1000
     const val DEFAULT_TEMPERATURE = 0.7f
     const val DEFAULT_TOP_P = 1.0f

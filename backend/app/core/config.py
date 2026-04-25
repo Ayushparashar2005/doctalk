@@ -18,7 +18,7 @@ class Settings(BaseSettings):
     # Groq API
     groq_api_key: str = ""
     groq_base_url: str = "https://api.groq.com/openai/v1"
-    default_groq_model: str = "llama3-8b-8192"
+    default_groq_model: str = "llama-3.1-8b-instant"
     
     # Local SQLite storage
     sqlite_db_path: str = "data/doctalk.sqlite3"

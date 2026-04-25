@@ -17,6 +17,10 @@ from app.models.schemas import ChatRequest, ChatResponse
 
 logger = logging.getLogger(__name__)
 
+DEPRECATED_MODEL_ALIASES = {
+    "llama3-8b-8192": settings.default_groq_model,
+}
+
 class RAGService:
     """Service for Retrieval-Augmented Generation"""
     
@@ -30,6 +34,31 @@ class RAGService:
             api_key=settings.groq_api_key,
             base_url=settings.groq_base_url,
         )
+
+    def _limit_context(self, context: List[str], max_total_chars: int = 12000, max_chunk_chars: int = 1400) -> List[str]:
+        """Limit context size to avoid model token-per-minute request rejections."""
+        if not context:
+            return []
+
+        limited: List[str] = []
+        total_chars = 0
+        for chunk in context:
+            if total_chars >= max_total_chars:
+                break
+
+            trimmed_chunk = chunk[:max_chunk_chars]
+            remaining = max_total_chars - total_chars
+            if remaining <= 0:
+                break
+
+            if len(trimmed_chunk) > remaining:
+                trimmed_chunk = trimmed_chunk[:remaining]
+
+            if trimmed_chunk.strip():
+                limited.append(trimmed_chunk)
+                total_chars += len(trimmed_chunk)
+
+        return limited
     
     async def retrieve_context(
         self, 
@@ -61,11 +90,15 @@ class RAGService:
         self, 
         query: str, 
         context: List[str], 
-        model: str = None
+        model: str = None,
+        allow_context_retry: bool = True,
     ) -> Dict[str, Any]:
         """Generate response using Groq with context"""
         try:
-            model = model or settings.default_groq_model
+            model = DEPRECATED_MODEL_ALIASES.get(model or "", model or settings.default_groq_model)
+            if model not in DEPRECATED_MODEL_ALIASES.values() and not model:
+                model = settings.default_groq_model
+            context = self._limit_context(context)
             
             # Create system prompt with context
             system_prompt = self._create_system_prompt(context)
@@ -103,6 +136,19 @@ class RAGService:
             }
             
         except Exception as e:
+            if "model_decommissioned" in str(e) and model != settings.default_groq_model:
+                logger.warning("Groq model %s is deprecated; retrying with %s", model, settings.default_groq_model)
+                return await self.generate_response(query=query, context=context, model=settings.default_groq_model)
+            error_text = str(e)
+            if allow_context_retry and ("rate_limit_exceeded" in error_text or "Request too large" in error_text):
+                reduced_context = self._limit_context(context, max_total_chars=2400, max_chunk_chars=600)
+                logger.warning("Groq request too large; retrying with reduced context (%s chunks)", len(reduced_context))
+                return await self.generate_response(
+                    query=query,
+                    context=reduced_context,
+                    model=model,
+                    allow_context_retry=False,
+                )
             logger.error(f"Failed to generate response: {e}")
             raise
     

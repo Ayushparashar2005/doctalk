@@ -78,21 +78,31 @@ class VectorStore:
             query_embedding = await embedding_service.create_single_embedding(query)
             chunks = await local_database.get_chunks(document_id)
 
+            if not chunks:
+                return []
+
             scored_chunks: List[Dict[str, Any]] = []
+            all_scored_chunks: List[Dict[str, Any]] = []
             for chunk in chunks:
                 score = self._cosine_similarity(query_embedding, chunk.get("embedding", []))
+                scored_chunk = {
+                    "text": chunk["text"],
+                    "score": score,
+                    "chunk_id": chunk["chunk_id"],
+                    "chunk_index": chunk["chunk_index"],
+                    "word_count": chunk.get("word_count", 0),
+                }
+                all_scored_chunks.append(scored_chunk)
                 if score >= self.similarity_threshold:
-                    scored_chunks.append(
-                        {
-                            "text": chunk["text"],
-                            "score": score,
-                            "chunk_id": chunk["chunk_id"],
-                            "chunk_index": chunk["chunk_index"],
-                            "word_count": chunk.get("word_count", 0),
-                        }
-                    )
+                    scored_chunks.append(scored_chunk)
 
             scored_chunks.sort(key=lambda item: item["score"], reverse=True)
+
+            # Broad questions can miss the threshold; fall back to highest-scoring chunks.
+            if not scored_chunks:
+                all_scored_chunks.sort(key=lambda item: item["score"], reverse=True)
+                return all_scored_chunks[:top_k]
+
             return scored_chunks[:top_k]
         except Exception as exc:
             logger.error("Failed to retrieve context: %s", exc)

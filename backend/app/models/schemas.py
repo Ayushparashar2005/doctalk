@@ -38,7 +38,7 @@ class ChatRequest(BaseModel):
     document_id: str = Field(..., description="Document ID")
     user_id: str = Field(..., description="User ID")
     session_id: Optional[str] = Field(None, description="Chat session ID")
-    model: Optional[str] = Field("llama3-8b-8192", description="Groq model to use")
+    model: Optional[str] = Field("llama-3.1-8b-instant", description="Groq model to use")
     max_context: Optional[int] = Field(5, ge=1, le=10, description="Max context chunks")
 
 class DocumentSearchRequest(BaseModel):

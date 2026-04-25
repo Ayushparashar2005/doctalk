@@ -43,13 +43,16 @@ class DocumentProcessor:
         try:
             self.nlp = spacy.load("en_core_web_sm")
         except OSError:
-            logger.warning("spaCy model not found. Some features may be limited.")
-            self.nlp = None
+            self.nlp = spacy.blank("en")
+            if "sentencizer" not in self.nlp.pipe_names:
+                self.nlp.add_pipe("sentencizer")
+            logger.info("spaCy model not found. Using lightweight English pipeline fallback.")
     
     def _download_nltk_data(self):
         """Download required NLTK data"""
         try:
             nltk.download('punkt', quiet=True)
+            nltk.download('punkt_tab', quiet=True)
             nltk.download('stopwords', quiet=True)
             nltk.download('averaged_perceptron_tagger', quiet=True)
         except Exception as e:
@@ -402,7 +405,11 @@ class DocumentProcessor:
     def _calculate_statistics(self, text: str, chunks: List[Dict[str, Any]]) -> Dict[str, Any]:
         """Calculate document statistics"""
         words = text.split()
-        sentences = sent_tokenize(text)
+        try:
+            sentences = sent_tokenize(text)
+        except LookupError as exc:
+            logger.warning(f"NLTK sentence tokenizer unavailable, using fallback: {exc}")
+            sentences = [segment.strip() for segment in text.replace("\n", " ").split(".") if segment.strip()]
         
         stats = {
             'word_count': len(words),

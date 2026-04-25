@@ -6,12 +6,12 @@ package com.doctalk.app.utils
 object Constants {
     
     // API Configuration
-    const val BASE_URL = "http://10.0.2.2:8002/api/v1/"
+    const val BASE_URL = "http://127.0.0.1:8001/api/v1/"
     const val API_TIMEOUT = 30_000L // 30 seconds
     
     // Groq API Configuration
     const val GROQ_BASE_URL = "https://api.groq.com/openai/v1"
-    const val DEFAULT_GROQ_MODEL = "llama3-8b-8192"
+    const val DEFAULT_GROQ_MODEL = "llama-3.1-8b-instant"
     const val PREF_SELECTED_GROQ_MODEL = "selected_groq_model"
     
     // File Upload Limits
